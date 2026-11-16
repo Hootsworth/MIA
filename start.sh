@@ -13,7 +13,11 @@ if ! command -v node >/dev/null 2>&1; then echo "Node.js LTS is required." >&2; 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 if (( NODE_MAJOR < 20 )); then echo "Node.js 20 or newer is required; found $(node --version)." >&2; exit 1; fi
 
+export PYTORCH_ENABLE_MPS_FALLBACK=1
+MODEL_CACHE="${MIA_MODEL_CACHE:-storage/models}"
+if [[ "$MODEL_CACHE" = /* ]]; then export HF_HOME="$MODEL_CACHE"; else export HF_HOME="$ROOT/$MODEL_CACHE"; fi
 mkdir -p data storage/documents storage/reports storage/exports storage/logs
+mkdir -p "$HF_HOME"
 if [[ ! -d .venv ]]; then "$PYTHON" -m venv .venv; fi
 .venv/bin/python -m pip install -r backend/requirements.txt
 .venv/bin/python -m pip install --no-build-isolation --no-deps ./packages/mia-detect

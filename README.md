@@ -11,7 +11,7 @@ MIA is designed to measure detector behavior, not to help people evade detection
 
 ## Current status
 
-The repository is at the Foundation milestone. It includes a FastAPI service, a SQLite schema, a Next.js status page, and an installable `mia-detect` package skeleton. The status page checks the real API health endpoint. Document ingestion, detector implementations, experiments, statistical analysis, and report generation are planned milestones and are not implemented yet.
+Milestones 1–3 provide the foundation, document ingestion, and the first real detector baseline. MIA Lab includes FastAPI with SQLite, a Next.js interface, declared-provenance document handling, and a pinned RoBERTa OpenAI detector with persistent inference results. The separate `mia-detect` package remains dependency-light and installable without the web application.
 
 ## Quick start
 
@@ -32,7 +32,7 @@ If `python3` on your machine points to an older Python, select the installed int
 PYTHON=python3.12 ./start.sh
 ```
 
-The first start creates a virtual environment, installs backend and frontend dependencies, creates the SQLite schema, and installs `mia-detect`. Press **Ctrl+C** in the start terminal or run `./stop.sh` to stop the services.
+The first start creates a virtual environment, installs backend and frontend dependencies (including PyTorch and Transformers), creates the SQLite schema, and installs `mia-detect`. Model weights download from Hugging Face the first time you run the detector health check; allow network access and several hundred megabytes of disk space. Press **Ctrl+C** in the start terminal or run `./stop.sh` to stop the services.
 
 | Service | Address |
 | --- | --- |
@@ -41,7 +41,7 @@ The first start creates a virtual environment, installs backend and frontend dep
 | API documentation | http://localhost:8000/docs |
 | Health endpoint | http://localhost:8000/api/health |
 
-The database lives at `data/mia.db`. Set `MIA_DATABASE_URL` to use another SQLAlchemy database URL. Set `NEXT_PUBLIC_API_URL` to change the frontend’s API address; defaults are in `.env.example`.
+The database lives at `data/mia.db`. Set `MIA_DATABASE_URL` to use another SQLAlchemy database URL. Set `NEXT_PUBLIC_API_URL` to change the frontend’s API address. `MIA_MODEL_CACHE` selects the Hugging Face cache directory (default `storage/models`). Defaults are in `.env.example`.
 
 ## Tests
 
@@ -51,7 +51,7 @@ Run the backend and standalone package tests with:
 .venv/bin/python -m pytest
 ```
 
-The current tests cover API health, schema creation, SQLite foreign keys and uniqueness, and installation/import of `mia-detect` without application dependencies.
+The current tests cover API health, schema creation, SQLite foreign keys and uniqueness, detector validation and unavailable states, and installation/import of `mia-detect` without application dependencies.
 
 ## Use `mia-detect` on its own
 
@@ -69,7 +69,7 @@ import mia_detect
 print(mia_detect.__version__)
 ```
 
-The package currently provides its module structure only. Detection methods will be implemented in their own milestones and documented with their limitations and score semantics.
+The package currently provides its module structure; the v1 similarity implementation is still a later milestone. The web app's RoBERTa model is separate from `mia-detect` and has no effect on that standalone package's dependency requirements.
 
 ## Research and privacy principles
 
@@ -102,3 +102,7 @@ MIA is distributed under the Apache License 2.0. See [LICENSE](LICENSE).
 Run the app with `./start.sh` and open `http://localhost:3000/documents`. Upload TXT, DOCX, or PDF files up to 20 MB. Declare provenance, language, and author language background; the API validates required provenance records and stores originals unchanged under `storage/documents/`. The document detail view shows extracted page text, warnings, hashes, and metadata editing. Exact duplicate hashes are rejected with the existing record linked; near duplicates are flagged with a five-word shingle Jaccard score.
 
 PDF extraction uses PyMuPDF, DOCX extraction uses python-docx, and text encoding is detected with charset-normalizer. Scanned PDFs are rejected because this milestone does not include OCR. CSV manifests can be exported from `/api/documents/manifest.csv` and re-imported at that endpoint while their referenced files remain in local document storage. See [`docs/METHODS.md`](docs/METHODS.md) and [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) for definitions and caveats.
+
+## Detectors (Milestone 3)
+
+Open `/detectors` to inspect availability and run the model's real inference health check. Once operational, select a stored English document of at least 50 words to produce a persistent result. The first health check downloads the pinned `openai-community/roberta-base-openai-detector` weights. The model was trained on GPT-2 outputs and WebText; its chunk-averaged Fake-class softmax score is not calibrated and cannot establish authorship. Every result retains the model revision, device, duration, raw per-chunk probabilities, and declared provenance. No evaluation metrics are produced in this milestone. Read [`docs/METHODS.md`](docs/METHODS.md) and [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) before interpreting outputs.

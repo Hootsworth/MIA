@@ -1,6 +1,7 @@
 "use client";
 
 import { Heading } from "@astryxdesign/core/Heading";
+import { Link } from "@astryxdesign/core/Link";
 import { Section } from "@astryxdesign/core/Section";
 import { Stack } from "@astryxdesign/core/Stack";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
@@ -53,6 +54,10 @@ export default function Home() {
         <Text as="p" type="supporting" color="secondary">
           Research infrastructure for transparency, reproducibility, and honest limitations.
         </Text>
+        <Stack direction="horizontal" gap={4} wrap="wrap">
+          <Link href="/documents" isStandalone>Open document library</Link>
+          <Link href="/detectors" isStandalone>Inspect detector registry</Link>
+        </Stack>
       </Stack>
     </Stack>
   </Section>;

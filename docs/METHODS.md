@@ -11,3 +11,11 @@ Exact duplicates are rejected by original-file SHA-256 and include the existing 
 Provenance and language background are declared in metadata. HUMAN records require source and a license or consent record. AI_GENERATED records require model, version, and prompt reference. AI_ASSISTED records require model, version, and editing history. Invalid declarations are rejected. Document create, metadata update, archive, and manifest import are recorded in audit events.
 
 CSV manifest export records the document ID, filename, original hash, and metadata/storage manifest. Import validates the metadata and confines referenced file paths to the document storage root, checks the original's SHA-256, and checks the extraction sidecar before restoring missing rows. The manifest does not embed document contents.
+
+## Milestone 3 detector inference
+
+The `roberta-openai` adapter pins `openai-community/roberta-base-openai-detector` to revision `6cba99c003b711c7fe94f8a3aa2be35a792cb6fa`. It loads the model and fast tokenizer lazily, uses MPS when available and CPU otherwise, and retries on CPU if MPS inference fails. The start script sets `PYTORCH_ENABLE_MPS_FALLBACK=1`. Hugging Face files are cached under `MIA_MODEL_CACHE` (default `storage/models`) and are not committed.
+
+The model's labels are `Fake` and `Real`. MIA reports the Fake-class softmax output as a model probability, not as a calibrated probability of AI authorship. Text shorter than 50 whitespace-separated words or whose declared language is not English is rejected. Longer texts are split into consecutive non-overlapping token windows within the 512-token sequence limit. The displayed score and final label use the unweighted mean of the per-window softmax probabilities; raw probabilities for each chunk are retained in the result JSON. Each prediction is persisted with the document's declared provenance, model revision, device, duration, configuration, and raw output. Failures persist an error result with no score; failures before an inference record can be created return a specific HTTP error.
+
+Since M5 experiment lifecycle is out of scope, each single-document M3 inference creates a minimal technical experiment row to satisfy the existing result foreign key. It has no classification rule and produces no aggregate metrics or authorship conclusion.

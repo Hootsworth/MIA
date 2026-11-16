@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.documents import router as documents_router
+from backend.api.detectors import router as detectors_router
 from backend.core.database import init_db
 
 
@@ -21,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(documents_router, prefix="/api")
+app.include_router(detectors_router, prefix="/api")
 
 
 @app.get("/api/health")
