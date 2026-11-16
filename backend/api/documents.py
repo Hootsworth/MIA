@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,8 +40,43 @@ def view(doc: Document):
             "created_at": doc.created_at.isoformat(), "updated_at": doc.updated_at.isoformat(),
             "metadata": meta.get("declared", {}), "word_count": meta.get("word_count", 0),
             "language_detection": meta.get("language_detection", {"status": "not_recorded"}),
-            "quality_flags": meta.get("quality_flags", []), "duplicate_flags": meta.get("duplicate_flags", []),
+            "quality_flags": _present_quality_flags(meta.get("quality_flags", [])), "duplicate_flags": meta.get("duplicate_flags", []),
             "deleted": bool(meta.get("deleted", False))}
+
+
+def _present_quality_flags(flags: list[dict]) -> list[dict]:
+    """Collapse legacy page-by-page layout warnings into a single readable notice."""
+    result = []
+    multi_column_pages = set()
+    multi_column_count = 0
+    for flag in flags:
+        if flag.get("code") != "possible_multi_column":
+            result.append(flag)
+            continue
+        multi_column_count += 1
+        multi_column_pages.update(flag.get("pages", []))
+        match = re.search(r"Page (\d+)", flag.get("message", ""))
+        if match:
+            multi_column_pages.add(int(match.group(1)))
+    if multi_column_count:
+        pages = sorted(multi_column_pages)
+        if pages:
+            ranges = []
+            start = previous = pages[0]
+            for page in pages[1:]:
+                if page == previous + 1:
+                    previous = page
+                    continue
+                ranges.append(str(start) if start == previous else f"{start}–{previous}")
+                start = previous = page
+            ranges.append(str(start) if start == previous else f"{start}–{previous}")
+            detail = f"pages {', '.join(ranges)}"
+        else:
+            detail = f"{multi_column_count} page(s)"
+        result.append({"code": "possible_multi_column",
+                       "message": f"Possible multi-column reading order on {detail}.",
+                       "pages": pages, "page_count": len(pages) or multi_column_count})
+    return result
 
 
 def audit(db: Session, typ: str, entity_id: str, detail: dict):

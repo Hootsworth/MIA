@@ -138,6 +138,7 @@ def extract(ext: str, data: bytes):
         if pdf.needs_pass:
             raise HTTPException(422, "Password-protected PDFs are not supported")
         image_pages = 0
+        multi_column_pages = []
         for number, page in enumerate(pdf, start=1):
             text = page.get_text("text", sort=True).strip()
             if page.get_images(full=True):
@@ -149,7 +150,11 @@ def extract(ext: str, data: bytes):
             left_rows = {round(word[1] / 8) for word in left_words}
             right_rows = {round(word[1] / 8) for word in right_words}
             if len(left_words) >= 12 and len(right_words) >= 12 and len(left_rows & right_rows) >= 3:
-                flags.append({"code": "possible_multi_column", "message": f"Page {number} may have multi-column reading order."})
+                multi_column_pages.append(number)
+        if multi_column_pages:
+            flags.append({"code": "possible_multi_column",
+                          "message": f"Possible multi-column reading order on {len(multi_column_pages)} page(s).",
+                          "pages": multi_column_pages})
         text = "\n\n".join(p["text"] for p in pages)
         if image_pages and len(text.split()) < max(10, len(pdf) * 5):
             raise HTTPException(422, "PDF appears scanned with no usable text layer; OCR is not supported")

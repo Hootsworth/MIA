@@ -235,11 +235,16 @@ def test_manifest_export_then_import_restores_database(isolated_client):
 
 def test_pdf_multi_column_layout_gets_warning(isolated_client):
     client, _, _ = isolated_client
-    source = fitz.open(); page = source.new_page()
-    for y in range(70, 450, 35):
-        page.insert_text((40, y), "Left column paragraph preserves ordinary readable text.")
-        page.insert_text((320, y), "Right column paragraph contains another useful passage.")
+    source = fitz.open()
+    for _ in range(3):
+        page = source.new_page()
+        for y in range(70, 450, 35):
+            page.insert_text((40, y), "Left column paragraph preserves ordinary readable text.")
+            page.insert_text((320, y), "Right column paragraph contains another useful passage.")
     data = source.tobytes(); source.close()
     response = post(client, "columns.pdf", data)
     assert response.status_code == 201, response.text
-    assert any(flag["code"] == "possible_multi_column" for flag in response.json()["quality_flags"])
+    flags = [flag for flag in response.json()["quality_flags"] if flag["code"] == "possible_multi_column"]
+    assert len(flags) == 1
+    assert flags[0]["pages"] == [1, 2, 3]
+    assert flags[0]["message"] == "Possible multi-column reading order on pages 1–3."

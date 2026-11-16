@@ -107,7 +107,7 @@ export default function DocumentsPage() {
       {visible.length === 0 ? <Text as="p" color="secondary">No documents yet. Upload a document above to begin.</Text> : <List header="Stored documents" density="compact" hasDividers>{visible.map((doc) => <ListItem key={doc.id} itemKey={doc.id} label={`${doc.filename} · ${doc.metadata.provenance} · ${doc.word_count} words`} onClick={() => void loadDocument(doc.id)} />)}</List>}
     </Stack>
     {selected && <Section variant="section" padding={5}><Stack gap={4}><Heading level={2}>{selected.filename}</Heading><Text as="p" type="supporting">SHA-256 · {selected.sha256}</Text>
-      {selected.quality_flags.map((flag) => <Text key={flag.code} as="p" color="accent">Warning: {flag.message}</Text>)}
+      {selected.quality_flags.map((flag, index) => <Text key={`${flag.code}-${index}`} as="p" color="accent">Warning: {flag.message}</Text>)}
       {selected.duplicate_flags.map((flag) => <Text key={flag.document_id} as="p" color="accent">Near duplicate of {flag.filename} · Jaccard {flag.jaccard}</Text>)}
       <Heading level={3}>Manually imported Turnitin results</Heading>
       {turnitinReports.length === 0 ? <Text as="p" color="secondary">No Turnitin reports are attached to this document.</Text> : <Table<ImportedReportRow> idKey="id" density="compact" dividers="rows" data={turnitinReports.map((report) => ({
