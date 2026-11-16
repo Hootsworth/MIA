@@ -96,3 +96,9 @@ docs/                    Methods, dataset policy, limitations, roadmap
 ## License
 
 MIA is distributed under the Apache License 2.0. See [LICENSE](LICENSE).
+
+## Documents (Milestone 2)
+
+Run the app with `./start.sh` and open `http://localhost:3000/documents`. Upload TXT, DOCX, or PDF files up to 20 MB. Declare provenance, language, and author language background; the API validates required provenance records and stores originals unchanged under `storage/documents/`. The document detail view shows extracted page text, warnings, hashes, and metadata editing. Exact duplicate hashes are rejected with the existing record linked; near duplicates are flagged with a five-word shingle Jaccard score.
+
+PDF extraction uses PyMuPDF, DOCX extraction uses python-docx, and text encoding is detected with charset-normalizer. Scanned PDFs are rejected because this milestone does not include OCR. CSV manifests can be exported from `/api/documents/manifest.csv` and re-imported at that endpoint while their referenced files remain in local document storage. See [`docs/METHODS.md`](docs/METHODS.md) and [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) for definitions and caveats.
