@@ -27,3 +27,12 @@
 - Overlap percentages measure matched query-word coverage against the indexed corpus. They are not probabilities, plagiarism findings, or proof of authorship. A zero score means only that no indexed fingerprints matched.
 - Results depend on reference-corpus coverage and licensing. Wikipedia pages are not a balanced or comprehensive corpus. Reuse requires attribution and ShareAlike compliance; MIA keeps collected page text and its derived index local and uncommitted.
 - No boilerplate filter, semantic matching layer, corpus-level false-positive study, or evaluation metrics are included in this milestone.
+
+## Milestone 5 experiments
+
+- A declared classification rule is required and frozen, but MIA does not interpret it or compute classifications or metrics yet.
+- The runner is one-job-at-a-time inside a single backend process. SQLite persists results and restart state, but this is not a distributed task queue.
+- Cancellation is checked between document-detector pairs; an inference already in progress may finish and be stored before cancellation takes effect.
+- A per-item failure is recorded with no score and leaves the experiment partially completed. Resume retries failed pairs and updates that pair's existing result row; successful pairs are not recomputed.
+- Protocol snapshots verify extracted text has not changed since draft creation. If local document storage is missing or changed, that pair records an error and requires storage repair before resume.
+- `conditions.transformations` is recorded as a protocol hook only. Perturbations are not applied in this milestone.

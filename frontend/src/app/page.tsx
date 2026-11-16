@@ -57,6 +57,7 @@ export default function Home() {
         <Stack direction="horizontal" gap={4} wrap="wrap">
           <Link href="/documents" isStandalone>Open document library</Link>
           <Link href="/detectors" isStandalone>Inspect detector registry</Link>
+          <Link href="/experiments" isStandalone>Plan an experiment</Link>
         </Stack>
       </Stack>
     </Stack>

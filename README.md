@@ -51,7 +51,7 @@ Run the backend and standalone package tests with:
 .venv/bin/python -m pytest
 ```
 
-The current tests cover API health, schema creation and constraints, detector availability, similarity normalization and winnowing guarantees, source attribution and match spans, and installation/import of `mia-detect` without application dependencies.
+The current tests cover API health, schema creation and constraints, detector availability, similarity normalization and winnowing guarantees, source attribution and match spans, experiment protocol freezing, real similarity runs, cancellation, resume/restart behavior, and installation/import of `mia-detect` without application dependencies.
 
 ## Use `mia-detect` on its own
 
@@ -117,3 +117,9 @@ The registry also exposes `MIA Similarity · Winnowing`. It is operational only 
 ```
 
 Then run the health check at `/detectors`. The collector stores article introductions locally and writes a revision-linked source manifest; the corpus and index are git-ignored. Commit only `data/manifests/` metadata. Defaults are five-word shingles and a four-shingle winnowing window, giving an eight-word exact-match threshold guarantee. The CLI can also index your own UTF-8 `.txt` directory and compare a text file: `mia-detect index <directory> --database <index>` then `mia-detect check <file> --database <index>`. Returned overlap percentages are query-word coverage, not probability or a plagiarism finding. See [`docs/DATASETS.md`](docs/DATASETS.md) for licensing and attribution rules.
+
+## Experiments (Milestone 5)
+
+Open `/experiments` to create a draft from stored documents and registered detectors. Declare the research question, hypothesis, classification rule, planned metrics, and random seed before queueing. MIA freezes the document IDs and hashes, extracted-text hashes, detector IDs and revisions, conditions, and protocol version. Queued protocols cannot be edited; duplicate an experiment to create a new draft.
+
+Runs persist one result per document-detector pair, including errors, and update progress after each pair. Cancel stops new pairs after the current in-flight pair. Failed pairs can be retried when resuming a partial run; successful pairs remain unchanged. On restart, running experiments with frozen snapshots become resumable partial runs. This milestone records a classification rule but does not apply thresholds or calculate metrics.

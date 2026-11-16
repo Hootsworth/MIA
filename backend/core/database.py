@@ -25,3 +25,18 @@ class Base(DeclarativeBase):
 def init_db():
     from backend.models import Base as _  # register model tables
     Base.metadata.create_all(bind=engine)
+    if engine.dialect.name == "sqlite":
+        # create_all creates new tables but does not add fields to the v1 table.
+        additions = {
+            "started_at": "DATETIME",
+            "finished_at": "DATETIME",
+            "completed_items": "INTEGER NOT NULL DEFAULT 0",
+            "total_items": "INTEGER NOT NULL DEFAULT 0",
+            "cancel_requested": "BOOLEAN NOT NULL DEFAULT 0",
+            "interruption_reason": "TEXT",
+        }
+        with engine.begin() as connection:
+            columns = {row["name"] for row in connection.exec_driver_sql("PRAGMA table_info(experiments)").mappings()}
+            for name, definition in additions.items():
+                if name not in columns:
+                    connection.exec_driver_sql(f"ALTER TABLE experiments ADD COLUMN {name} {definition}")

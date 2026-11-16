@@ -5,12 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.documents import router as documents_router
 from backend.api.detectors import router as detectors_router
+from backend.api.experiments import router as experiments_router
 from backend.core.database import init_db
+from backend.services.experiment_runner import recover_interrupted_experiments, schedule_queued_experiments
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    recover_interrupted_experiments()
+    schedule_queued_experiments()
     yield
 
 
@@ -23,6 +27,7 @@ app.add_middleware(
 )
 app.include_router(documents_router, prefix="/api")
 app.include_router(detectors_router, prefix="/api")
+app.include_router(experiments_router, prefix="/api")
 
 
 @app.get("/api/health")

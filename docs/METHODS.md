@@ -18,7 +18,7 @@ The `roberta-openai` adapter pins `openai-community/roberta-base-openai-detector
 
 The model's labels are `Fake` and `Real`. MIA reports the Fake-class softmax output as a model probability, not as a calibrated probability of AI authorship. Text shorter than 50 whitespace-separated words or whose declared language is not English is rejected. Longer texts are split into consecutive non-overlapping token windows within the 512-token sequence limit. The displayed score and final label use the unweighted mean of the per-window softmax probabilities; raw probabilities for each chunk are retained in the result JSON. Each prediction is persisted with the document's declared provenance, model revision, device, duration, configuration, and raw output. Failures persist an error result with no score; failures before an inference record can be created return a specific HTTP error.
 
-Since M5 experiment lifecycle is out of scope, each single-document M3 inference creates a minimal technical experiment row to satisfy the existing result foreign key. It has no classification rule and produces no aggregate metrics or authorship conclusion.
+Each single-document M3 inference creates a minimal technical experiment row to satisfy the result foreign key. It has no classification rule and produces no aggregate metrics or authorship conclusion. Milestone 5 adds frozen, multi-document experiment protocols separately.
 
 ## Milestone 4 winnowing similarity
 
@@ -31,3 +31,11 @@ The inverted index is SQLite with foreign keys enabled and a B-tree index on fin
 Every matching fingerprint is expanded across adjacent identical normalized words and aligned query/source ranges are merged. Per-source overlap is distinct query-word positions covered by exact normalized matches divided by query word count. Overall overlap is the union of query-word positions covered by any source divided by query word count. Both are percentages, not probabilities, plagiarism decisions, or authorship labels. Use `exclude_source_ids` in the library or `--exclude-source` in the CLI when a query is also present in the index.
 
 The corpus helper downloads page extracts through Wikipedia's MediaWiki API and records permanent revision links, page IDs, hashes, and the declared CC BY-SA 4.0 license in `corpus-manifest.json`. Wikipedia attribution is provided through the per-page revision URL; text is retained only in ignored local storage. The generated index is also local and rebuildable. See `docs/DATASETS.md` for reuse terms and data handling.
+
+## Milestone 5 experiment protocols and execution
+
+An experiment protocol records its research question, hypothesis, explicit classification rule, planned metrics, seed, version, conditions and declared transformations. It snapshots each selected document's ID, original SHA-256, extraction text hash, filename, declared provenance and research metadata, plus detector keys, database IDs, model revisions and score semantics. Once queued, this JSON protocol is immutable. Duplicating a run creates a new draft with the same snapshot.
+
+The runner processes the Cartesian product of snapshot documents and detectors one pair at a time. Inference runs in a worker thread so API requests can still cancel the experiment. Every result, including a per-item failure with no score, is committed before advancing progress. Cancellation takes effect between pairs; an in-flight pair is allowed to finish. Successful pairs are retained during resume, while failed pairs are retried in place and their attempt count is recorded. A backend restart marks active snapshot-based runs partial and schedules work that was queued but had not begun. Legacy single-document inference rows are excluded from this recovery path.
+
+The classification rule and metrics list are protocol declarations only. Milestone 5 does not convert scores to classes, compute binary metrics, apply perturbations, or produce aggregate conclusions. Those are later research and statistics work.
