@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
+from scipy.stats import binomtest
 from sklearn.metrics import (accuracy_score, average_precision_score, cohen_kappa_score,
                              confusion_matrix, f1_score, precision_score, recall_score,
                              roc_auc_score)
@@ -72,9 +73,11 @@ def calibration(scores, labels, *, bins: int = 10):
         n = int(mask.sum())
         if n:
             confidence, observed = float(p[mask].mean()), float(y[mask].mean())
+            interval = binomtest(int(y[mask].sum()), n).proportion_ci(confidence_level=.95, method="wilson")
             ece += n / len(p) * abs(confidence - observed)
             rows.append({"lower": float(edges[i]), "upper": float(edges[i + 1]), "n": n,
-                         "mean_probability": confidence, "positive_rate": observed})
+                         "mean_probability": confidence, "positive_rate": observed,
+                         "positive_rate_ci": {"lower": float(interval.low), "upper": float(interval.high)}})
     return {"n": len(p), "ece": float(ece), "bins": rows}
 
 

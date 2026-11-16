@@ -26,6 +26,14 @@ type ExperimentRow = {
 };
 type Option = { value: string; label: string };
 type AnalysisMetricRow = Record<string, unknown> & { id: string; detector: string; metric: string; estimate: string; interval: string; n: number };
+type AnalysisSubgroupRow = Record<string, unknown> & { id: string; detector: string; subgroup: string; value: string; n: number; reliability: string; estimates: string };
+type AnalysisComparisonRow = Record<string, unknown> & { id: string; pair: string; n: number; kappa: string; spearman: string; mcnemar: string; aurocDifference: string };
+type AnalysisResponse = {
+  detectors?: { detector: string; n: number; metrics: Record<string, unknown>; confidence_intervals?: Record<string, { lower: number; upper: number }>; reason?: string;
+    subgroups?: Record<string, { value: string; n: number; unreliable: boolean; metrics: Record<string, unknown>; confidence_intervals?: Record<string, { lower: number; upper: number }> }[]> }[];
+  comparisons?: { first: string; second: string; n: number; agreement_kappa: number | null; spearman: number | null; mcnemar_p_exact: number; auroc_difference_first_minus_second: number | null; auroc_difference_ci?: { lower: number; upper: number } }[];
+  note?: string;
+};
 const metricOptions: Option[] = ["accuracy", "precision", "recall", "specificity", "f1", "fpr", "fnr", "auroc", "auprc", "cohen_kappa", "confusion_matrix", "calibration", "ece"].map((value) => ({ value, label: value }));
 const provenanceOptions: Option[] = ["HUMAN", "AI_GENERATED", "AI_ASSISTED"].map((value) => ({ value, label: value.replaceAll("_", " ") }));
 
@@ -43,7 +51,7 @@ export default function ExperimentsPage() {
   const [direction, setDirection] = useState("higher");
   const [thresholds, setThresholds] = useState<Record<string, string>>({});
   const [metrics, setMetrics] = useState<string[]>(["auroc"]);
-  const [analyses, setAnalyses] = useState<Record<string, { detectors?: { detector: string; n: number; metrics: Record<string, unknown>; confidence_intervals?: Record<string, { lower: number; upper: number }>; reason?: string }[]; note?: string }>>({});
+  const [analyses, setAnalyses] = useState<Record<string, AnalysisResponse>>({});
   const [transformationsJson, setTransformationsJson] = useState("[]");
   const [seed, setSeed] = useState("0");
   const [notice, setNotice] = useState("");
@@ -95,7 +103,7 @@ export default function ExperimentsPage() {
     setBusy(true); setNotice("");
     try {
       const response = await fetch(`${API}/api/analysis/experiments/${id}`);
-      const body = await response.json() as { detail?: string | { message?: string }; detectors?: { detector: string; n: number; metrics: Record<string, unknown>; confidence_intervals?: Record<string, { lower: number; upper: number }>; reason?: string }[]; note?: string };
+      const body = await response.json() as AnalysisResponse & { detail?: string | { message?: string } };
       if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : body.detail?.message ?? JSON.stringify(body.detail));
       setAnalyses((current) => ({ ...current, [id]: body }));
       setNotice("Analysis loaded from persisted experiment results.");
@@ -156,11 +164,23 @@ export default function ExperimentsPage() {
             <Button label="Duplicate as draft" variant="secondary" isDisabled={busy} onClick={() => void action(experiment.id, "duplicate")} />
           </Stack>
           {experiment.results.length > 0 && <Stack gap={2}><Heading level={4}>Per-item results</Heading>{experiment.results.map((result) => <Text key={result.id} as="p" type="supporting">{result.filename ?? result.document_id} · {result.error ? `failed: ${result.error.message ?? "unknown error"}` : `score ${result.output.score ?? "unavailable"} (${result.output.score_semantics ?? "unknown"})${result.output.label ? ` · ${result.output.label}` : ""}`}</Text>)}</Stack>}
-          {analyses[experiment.id] && <Stack gap={2}><Heading level={4}>Statistics</Heading><Table<AnalysisMetricRow> idKey="id" density="compact" dividers="rows" data={(analyses[experiment.id].detectors ?? []).flatMap((row) => {
+          {analyses[experiment.id] && <Stack gap={3}><Heading level={4}>Statistics</Heading><Table<AnalysisMetricRow> idKey="id" density="compact" dividers="rows" data={(analyses[experiment.id].detectors ?? []).flatMap((row) => {
             const entries = Object.entries(row.metrics);
             if (entries.length === 0) return [{ id: `${row.detector}-none`, detector: row.detector, metric: "Not estimable", estimate: row.reason ?? "No metric could be estimated", interval: "—", n: row.n }];
             return entries.map(([metric, value]) => { const interval = row.confidence_intervals?.[metric]; return { id: `${row.detector}-${metric}`, detector: row.detector, metric, estimate: JSON.stringify(value), interval: interval ? `${interval.lower.toFixed(4)} to ${interval.upper.toFixed(4)}` : "—", n: row.n }; });
-          })} columns={[{ key: "detector", header: "Detector" }, { key: "metric", header: "Metric" }, { key: "estimate", header: "Estimate" }, { key: "interval", header: "95% CI" }, { key: "n", header: "n" }]} /><Text as="p" type="supporting">{analyses[experiment.id].note}</Text></Stack>}
+          })} columns={[{ key: "detector", header: "Detector" }, { key: "metric", header: "Metric" }, { key: "estimate", header: "Estimate" }, { key: "interval", header: "95% CI" }, { key: "n", header: "n" }]} />
+          <Heading level={5}>Subgroups</Heading><Table<AnalysisSubgroupRow> idKey="id" density="compact" dividers="rows" data={(analyses[experiment.id].detectors ?? []).flatMap((row) => Object.entries(row.subgroups ?? {}).flatMap(([group, cells]) => cells.map((cell) => ({
+            id: `${row.detector}-${group}-${cell.value}`, detector: row.detector, subgroup: group, value: cell.value, n: cell.n,
+            reliability: cell.unreliable ? "Unreliable · low n" : "n meets floor",
+            estimates: Object.entries(cell.metrics).map(([metric, value]) => { const ci = cell.confidence_intervals?.[metric]; return ci ? `${metric}: ${JSON.stringify(value)} (${ci.lower.toFixed(4)} to ${ci.upper.toFixed(4)})` : `${metric}: ${JSON.stringify(value)}`; }).join(" · ") || "No metric estimable",
+          }))))} columns={[{ key: "detector", header: "Detector" }, { key: "subgroup", header: "Grouping" }, { key: "value", header: "Group" }, { key: "n", header: "n" }, { key: "reliability", header: "Sample note" }, { key: "estimates", header: "Estimates · 95% CI" }]} />
+          {(analyses[experiment.id].comparisons?.length ?? 0) > 0 && <><Heading level={5}>Detector comparisons</Heading><Table<AnalysisComparisonRow> idKey="id" density="compact" dividers="rows" data={(analyses[experiment.id].comparisons ?? []).map((row) => ({
+            id: `${row.first}-${row.second}`, pair: `${row.first} / ${row.second}`, n: row.n,
+            kappa: row.agreement_kappa === null ? "—" : row.agreement_kappa.toFixed(4),
+            spearman: row.spearman === null ? "—" : row.spearman.toFixed(4), mcnemar: row.mcnemar_p_exact.toFixed(4),
+            aurocDifference: row.auroc_difference_ci ? `${row.auroc_difference_first_minus_second?.toFixed(4)} (${row.auroc_difference_ci.lower.toFixed(4)} to ${row.auroc_difference_ci.upper.toFixed(4)})` : "Not estimable",
+          }))} columns={[{ key: "pair", header: "Detector pair" }, { key: "n", header: "Paired n" }, { key: "kappa", header: "Agreement κ" }, { key: "spearman", header: "Spearman ρ" }, { key: "mcnemar", header: "Exact McNemar p" }, { key: "aurocDifference", header: "AUROC difference · 95% CI" }]} /></>}
+          <Text as="p" type="supporting">{analyses[experiment.id].note}</Text></Stack>}
         </Stack></Section>;
       })}
     </Stack>

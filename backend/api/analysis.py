@@ -45,9 +45,11 @@ def _subgroups(rows, floor, requested, cfg, seed, replicates):
                                             threshold=cfg.get("threshold")).get(metric)
                     except ValueError:
                         return None
+                group_ids = [row["document"].get("source_group") or row["document"]["id"] for row in items]
+                use_groups = group_ids if len(set(group_ids)) < len(items) else None
                 intervals[name] = bootstrap_interval(np.arange(len(labels)),
                     lambda index, stat=stat: stat(np.asarray(index, dtype=int)), seed=seed,
-                    replicates=replicates)
+                    replicates=replicates, clusters=use_groups)
             cells.append({"value": value, "n": len(items), "unreliable": len(items) < floor,
                           "metrics": cell_metrics, "confidence_intervals": intervals})
         out[key] = cells
