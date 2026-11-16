@@ -54,3 +54,10 @@
 - MIA does not verify report contents with Turnitin, parse passages from the PDF/image, or provide API access. Researchers transcribe displayed values and passage annotations, then confirm the document association.
 - Eligible word-count tolerance is researcher supplied and stored. An overly permissive tolerance weakens the association safeguard.
 - Censored scores remain typed observations with raw display strings and optional upper bounds. MIA does not yet implement censoring-aware statistical estimators.
+
+## Milestone 8 reporting
+
+- Markdown reports can only be generated for completed experiments using structured M6 protocols. Legacy M5 free-text protocols cannot provide a reproducible statistical report.
+- Report estimates match the analysis endpoint at generation time; a later code change may alter recalculated statistics. Reports include the generating commit SHA so this distinction is visible.
+- Tiny subgroup cells are marked unreliable and do not receive bootstrap intervals. Their point estimates are descriptive only.
+- CSV is an export of individual stored detector outputs (including errors and manual Turnitin observations); it does not embed original documents or report files.

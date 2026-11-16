@@ -36,7 +36,10 @@ def _subgroups(rows, floor, requested, cfg, seed, replicates):
             metrics = score_binary(labels, scores, direction=cfg["direction"], threshold=cfg.get("threshold"))
             cell_metrics = {name: metrics.get(name) for name in requested if name in metrics}
             intervals = {}
-            for name in requested:
+            # Tiny cells are explicitly marked unreliable. Avoid thousands of
+            # bootstrap samples that cannot make a one- or two-document cell
+            # informative, and make the missing interval explicit in the UI/report.
+            for name in requested if len(items) >= floor else ():
                 if name not in metrics or metrics[name] is None or not isinstance(metrics[name], (int, float)):
                     continue
                 def stat(indices, metric=name):

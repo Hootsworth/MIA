@@ -11,7 +11,7 @@ MIA is designed to measure detector behavior, not to help people evade detection
 
 ## Current status
 
-The Foundation, Documents, Detectors, Similarity, Experiments, Statistics, and manual Turnitin report import milestones are implemented. The home screen now supports a direct upload-to-real-inference workflow with the pinned RoBERTa detector. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. The Lab registry exposes the RoBERTa baseline and similarity detector; similarity is unavailable until a local reference index is built. Statistics analyze persisted experiments using frozen provenance labels and structured classification rules. Turnitin imports are manual, require explicit document confirmation and matching hashes, preserve censored values, and must only be used after institutional approval. Research reporting remains a later milestone.
+The Foundation, Documents, Detectors, Similarity, Experiments, Statistics, and manual Turnitin report import milestones are implemented. The home screen supports direct document upload and real inference with the pinned RoBERTa detector. MIA now generates reproducible Markdown research reports and raw-result CSV exports from completed, analyzable experiments through the Reports API; the analysis and report browser views are being completed as part of M8. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. Turnitin imports remain manual, require explicit document confirmation and matching hashes, preserve censored values, and may only be used after institutional authorization.
 
 ## Quick start
 

@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use MIA in research, please cite this software. Also cite the papers and datasets for the methods and data you use."
+type: software
+title: "MIA: Open Detector Toolkit and Evaluation Lab"
+authors:
+  - family-names: Dixit
+    given-names: Aditya
+version: "0.7"
+repository-code: "https://github.com/Hootsworth/MIA"
+license: Apache-2.0
+keywords:
+  - AI writing detection
+  - text similarity
+  - research evaluation

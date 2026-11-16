@@ -8,6 +8,7 @@ from backend.api.detectors import router as detectors_router
 from backend.api.experiments import router as experiments_router
 from backend.api.analysis import router as analysis_router
 from backend.api.turnitin import router as turnitin_router
+from backend.api.reports import router as reports_router
 from backend.core.database import init_db
 from backend.services.experiment_runner import recover_interrupted_experiments, schedule_queued_experiments
 
@@ -32,6 +33,7 @@ app.include_router(detectors_router, prefix="/api")
 app.include_router(experiments_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
 app.include_router(turnitin_router, prefix="/api")
+app.include_router(reports_router, prefix="/api")
 
 
 @app.get("/api/health")

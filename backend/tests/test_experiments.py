@@ -11,6 +11,7 @@ from mia_detect.similarity import SQLiteFingerprintIndex
 from backend.api import detectors as detector_api
 from backend.api import documents as document_api
 from backend.api import experiments as experiment_api
+from backend.api import reports as reports_api
 from backend.core.database import Base
 from backend.detectors import registry
 from backend.detectors.similarity import SimilarityDetector
@@ -237,3 +238,48 @@ def test_cancel_between_items_stops_additional_results(experiment_client, monkey
     cancelled = wait_for(client, created["id"], {"CANCELLED"})
     assert cancelled["progress"]["completed"] == 1
     assert len(cancelled["results"]) == 1
+
+
+def test_generated_report_contains_analysis_and_downloadable_raw_csv(experiment_client, tmp_path, monkeypatch):
+    client, sessions, _ = experiment_client
+    monkeypatch.setattr(reports_api, "ROOT", tmp_path)
+    monkeypatch.setattr(reports_api, "GENERATED_STORAGE", tmp_path / "storage" / "reports" / "generated")
+    with sessions() as db:
+        human = Document(filename="human.txt", sha256="a" * 64,
+                         metadata_json={"word_count": 60, "declared": {"provenance": "HUMAN"}})
+        ai = Document(filename="generated.txt", sha256="b" * 64,
+                      metadata_json={"word_count": 70, "declared": {"provenance": "AI_GENERATED"}})
+        db.add_all([human, ai]); db.flush()
+        experiment = Experiment(name="Report fixture", status="COMPLETED", completed_items=2, total_items=2,
+            protocol={"protocol_version": "m6.1", "research_question": "RQ1", "hypothesis": "Test fixture",
+                      "seed": 11, "conditions": {"transformations": []}, "metrics": ["accuracy", "auroc"],
+                      "classification_rule": {"version": "m6.1", "positive_provenance": ["AI_GENERATED"],
+                          "negative_provenance": ["HUMAN"], "detectors": {"fixture": {"direction": "higher", "threshold": 50}}},
+                      "document_snapshot": [
+                          {"id": human.id, "filename": human.filename, "sha256": human.sha256, "word_count": 60,
+                           "provenance": "HUMAN", "source_group": "human-source"},
+                          {"id": ai.id, "filename": ai.filename, "sha256": ai.sha256, "word_count": 70,
+                           "provenance": "AI_GENERATED", "source_group": "ai-source"}],
+                      "detector_snapshot": [{"key": "fixture", "version_id": None, "model_id": "fixture-model",
+                                             "revision": "fixture-revision", "score_semantics": "percentage"}]})
+        db.add(experiment); db.flush()
+        db.add_all([
+            Result(experiment_id=experiment.id, document_id=human.id, output={"score": 10, "score_semantics": "percentage"}),
+            Result(experiment_id=experiment.id, document_id=ai.id, output={"score": 90, "score_semantics": "percentage"}),
+        ])
+        db.commit()
+        experiment_id = experiment.id
+
+    response = client.post(f"/api/experiments/{experiment_id}/reports")
+    assert response.status_code == 201, response.text
+    report = response.json()
+    assert report["analysis"]["detectors"][0]["metrics"]["auroc"] == 1.0
+    assert client.get("/api/reports").json()[0]["id"] == report["id"]
+    markdown = client.get(report["markdown_url"])
+    assert markdown.status_code == 200
+    assert "Git commit: unavailable" in markdown.text
+    assert "AI_GENERATED" in markdown.text
+    raw_csv = client.get(report["csv_url"])
+    assert raw_csv.status_code == 200
+    assert "generated.txt" in raw_csv.text
+    assert "90" in raw_csv.text
