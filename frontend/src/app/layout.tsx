@@ -1,3 +1,5 @@
+// Copyright 2026 MIA contributors
+// SPDX-License-Identifier: Apache-2.0
 import "@astryxdesign/core/reset.css";
 import "@astryxdesign/core/astryx.css";
 import { Heading } from "@astryxdesign/core/Heading";
@@ -17,11 +19,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Stack as="header" direction="horizontal" width="100%" maxWidth="76rem" hAlign="between" vAlign="center" gap={4} wrap="wrap">
           <Link href="/" isStandalone><Stack gap={0.5}><Heading level={3}>MIA</Heading><Text type="label" color="secondary">OPEN TEXT ANALYSIS</Text></Stack></Link>
           <Stack as="nav" direction="horizontal" gap={4} wrap="wrap" aria-label="Main navigation">
-            <Link href="/" isStandalone>Analyze</Link>
+            <Link href="/" isStandalone>Overview</Link>
             <Link href="/documents" isStandalone>Documents</Link>
             <Link href="/detectors" isStandalone>Detectors</Link>
             <Link href="/experiments" isStandalone>Experiments</Link>
-            <Link href="/turnitin-reports" isStandalone>Reports</Link>
+            <Link href="/analysis" isStandalone>Analysis</Link>
+            <Link href="/turnitin-reports" isStandalone>Turnitin</Link>
+            <Link href="/reports" isStandalone>Reports</Link>
           </Stack>
         </Stack>
       </Stack>

@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Manual, institution-authorised Turnitin report imports. No vendor API calls."""
 import hashlib
 import json

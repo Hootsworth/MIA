@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Readable, standalone text-similarity primitives based on winnowing."""
 
 from .index import FingerprintIndex, SQLiteFingerprintIndex

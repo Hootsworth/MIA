@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Persistent, one-job-at-a-time experiment execution."""
 
 import asyncio

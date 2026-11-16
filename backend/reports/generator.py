@@ -138,12 +138,13 @@ def render_raw_csv(experiment, document_rows, detector_versions):
     version_keys = {row.get("version_id"): row.get("key") for row in detector_versions}
     output = io.StringIO(newline="")
     writer = csv.writer(output)
-    writer.writerow(["result_id", "document_id", "filename", "provenance", "detector", "score", "score_semantics", "score_state", "raw_display", "label", "created_at", "error"])
+    writer.writerow(["result_id", "document_id", "filename", "provenance", "detector", "score", "score_semantics", "score_state", "raw_display", "label", "raw_output_json", "created_at", "error"])
     for row in document_rows:
         doc = docs.get(row.get("document_id"), {})
         result = row.get("output") or {}
         writer.writerow([row.get("id"), row.get("document_id"), doc.get("filename"), doc.get("provenance"),
                          row.get("detector") or version_keys.get(row.get("detector_version_id"), "unknown"), result.get("score"),
                          result.get("score_semantics"), result.get("score_state", "missing" if result.get("error") else "value"),
-                         result.get("raw_display"), result.get("label"), row.get("created_at"), row.get("error")])
+                         result.get("raw_display"), result.get("label"),
+                         json.dumps(result.get("raw_output"), sort_keys=True, ensure_ascii=False), row.get("created_at"), row.get("error")])
     return output.getvalue()

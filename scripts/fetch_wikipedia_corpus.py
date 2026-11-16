@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Collect a revision-pinned English Wikipedia reference sample via its public API.
 
 Raw page text and corpus manifests are written under storage/, never committed.

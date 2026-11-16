@@ -1,3 +1,5 @@
+// Copyright 2026 MIA contributors
+// SPDX-License-Identifier: Apache-2.0
 import { defineTheme } from "@astryxdesign/core/theme";
 import { defaultThemeSlug, themes } from "./astryx-themes";
 

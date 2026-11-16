@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Lab adapter around the standalone mia-detect similarity package."""
 
 from __future__ import annotations

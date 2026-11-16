@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Deterministic percentile bootstrap intervals, optionally clustered by source."""
 import numpy as np
 

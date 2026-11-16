@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 import json
 import threading
 import time
@@ -269,6 +271,14 @@ def test_generated_report_contains_analysis_and_downloadable_raw_csv(experiment_
         ])
         db.commit()
         experiment_id = experiment.id
+
+    analysis_response = client.get(f"/api/analysis/experiments/{experiment_id}")
+    assert analysis_response.status_code == 200, analysis_response.text
+    chart_data = analysis_response.json()["detectors"][0]
+    assert len(chart_data["observations"]) == 2
+    assert len(chart_data["roc_curve"]) >= 2
+    assert sum(row["counts"].get("HUMAN", 0) for row in chart_data["score_distribution"]) == 1
+    assert sum(row["counts"].get("AI_GENERATED", 0) for row in chart_data["score_distribution"]) == 1
 
     response = client.post(f"/api/experiments/{experiment_id}/reports")
     assert response.status_code == 201, response.text

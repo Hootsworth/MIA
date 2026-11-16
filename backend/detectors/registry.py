@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 from collections.abc import Callable
 
 from backend.detectors.base import DetectorAdapter

@@ -2,6 +2,10 @@
 
 No research data is bundled in the repository. Before any dataset is used, record its source, license, collection date, provenance, and consent status; verify that its license permits the intended research use. Commit manifests, not raw corpora.
 
+## Evaluation corpora
+
+No labeled AI-versus-human evaluation benchmark is bundled or preselected by MIA. HC3, M4, RAID, Wikipedia, arXiv, or other candidate sources must be evaluated individually for license, collection terms, redistribution restrictions, consent, source/author identifiers, and suitability for each research question before inclusion. Record those decisions and exact dataset revisions in a manifest. Keep any licensed or consented source data outside the repository. No non-native English corpus has been approved for RQ2, so MIA must not report RQ2 findings until an eligible corpus is documented.
+
 ## Milestone 4 reference corpus
 
 The similarity development corpus uses English Wikipedia namespace-0 article introductions collected through the official MediaWiki API. Wikimedia Foundation guidance says most Wikipedia text is available under CC BY-SA 4.0 and GFDL; the collector declares CC BY-SA 4.0, preserves a permanent link to each page revision for attribution, and records the page and revision IDs, collection timestamp, UTF-8 content hash, and word count. Individual page notices must be respected; remove any page whose notice indicates incompatible terms before using it. Keep introductions in ignored `storage/reference-corpus/` and the SQLite index in ignored `storage/similarity/`. Only the per-page manifest under `data/manifests/` is committed. Do not redistribute the corpus or index unless ShareAlike and attribution obligations have been reviewed.

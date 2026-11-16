@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 from .tables import (
     AuditEvent, Dataset, DatasetDocument, Detector, DetectorVersion, Document,
     Experiment, ExperimentDocument, GeneratedReport, HighlightedPassage, Result,

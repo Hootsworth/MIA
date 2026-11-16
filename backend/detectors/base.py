@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Protocol

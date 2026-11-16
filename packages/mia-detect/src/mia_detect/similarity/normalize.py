@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Unicode-aware prose normalization that keeps original character offsets."""
 
 from dataclasses import dataclass

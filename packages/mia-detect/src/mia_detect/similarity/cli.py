@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
 """Command line interface for building and querying a local similarity index."""

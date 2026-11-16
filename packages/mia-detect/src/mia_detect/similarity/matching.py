@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
 """Exact-fingerprint matching, merged text spans, and overlap summaries."""

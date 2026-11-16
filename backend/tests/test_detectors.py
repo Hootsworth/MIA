@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 from backend.detectors import DetectorInput, DetectorRegistry
 from backend.detectors.roberta_openai import MIN_WORDS, MODEL_REVISION, ModelUnavailableError, RobertaOpenAIDetector
 

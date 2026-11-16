@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Real inference adapter for OpenAI's GPT-2-output RoBERTa detector."""
 
 from __future__ import annotations

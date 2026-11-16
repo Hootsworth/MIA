@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Validated manual Turnitin report import payloads; no vendor API integration."""
 from datetime import datetime
 from typing import Literal

@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 """Read-only evaluation of immutable experiment snapshots and persisted outputs."""
 from collections import defaultdict
 
@@ -5,6 +7,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sklearn.metrics import roc_curve
 
 from backend.analytics.bootstrap import bootstrap_interval
 from backend.analytics.comparison import compare_decisions
@@ -161,12 +164,34 @@ def analyze_experiment(experiment_id: str, min_subgroup_n: int = 30, bootstrap_r
                     replicates=bootstrap_replicates, clusters=use_clusters)
             if "calibration" in metrics:
                 calculated["calibration"] = cal["bins"]
+        roc_points = []
+        if len(np.unique(y)) == 2:
+            fpr, tpr, _ = roc_curve(y, scores if cfg["direction"] == "higher" else -scores)
+            roc_points = [{"false_positive_rate": float(x), "true_positive_rate": float(z)} for x, z in zip(fpr, tpr)]
+        low, high = float(scores.min()), float(scores.max())
+        edges = np.linspace(low, high, 11) if high > low else np.array([low, high])
+        distribution = []
+        for index in range(max(1, len(edges) - 1)):
+            lower = float(edges[index])
+            upper = float(edges[index + 1]) if high > low else high
+            last = index == len(edges) - 2
+            counts = {}
+            for provenance in sorted({str(r["document"].get("provenance") or "unknown") for r in valid}):
+                values = [r["score"] for r in valid if str(r["document"].get("provenance") or "unknown") == provenance]
+                counts[provenance] = sum(lower <= value <= upper if last or high == low else lower <= value < upper for value in values)
+            distribution.append({"label": f"{lower:.3g}–{upper:.3g}", "lower": lower, "upper": upper, "counts": counts})
         predictions[key] = {r["document"]["id"]: (r["label"], r["score"], cfg) for r in valid}
         summary.append({"detector": key, "n": len(valid), "positive_n": int(y.sum()),
                         "negative_n": int(len(y)-y.sum()), "excluded": excluded,
                         "metrics": calculated, "confidence_intervals": cis,
                         "subgroups": _subgroups(valid, min_subgroup_n, metrics, cfg, seed, bootstrap_replicates),
-                        "insufficient_classes": len(np.unique(y)) < 2})
+                        "insufficient_classes": len(np.unique(y)) < 2,
+                        "roc_curve": roc_points,
+                        "score_distribution": distribution,
+                        "observations": [{"document_id": row["document"]["id"],
+                                          "provenance": row["document"].get("provenance") or "unknown",
+                                          "score": row["score"], "label": row["label"],
+                                          "word_count": row["document"].get("word_count")} for row in valid]})
     comparisons = []
     detector_keys = list(predictions)
     for i, first in enumerate(detector_keys):

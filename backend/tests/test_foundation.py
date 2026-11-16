@@ -1,3 +1,5 @@
+# Copyright 2026 MIA contributors
+# SPDX-License-Identifier: Apache-2.0
 import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
