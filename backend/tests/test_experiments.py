@@ -293,3 +293,7 @@ def test_generated_report_contains_analysis_and_downloadable_raw_csv(experiment_
     assert raw_csv.status_code == 200
     assert "generated.txt" in raw_csv.text
     assert "90" in raw_csv.text
+
+    repeated = client.post(f"/api/experiments/{experiment_id}/reports")
+    assert repeated.status_code == 201, repeated.text
+    assert repeated.json()["analysis"] == report["analysis"]
