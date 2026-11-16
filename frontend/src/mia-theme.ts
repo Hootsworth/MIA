@@ -9,7 +9,13 @@ export const miaEditorialTheme = defineTheme({
   components: {
     heading: {
       "type:display-1": {
-        fontFamily: '"Manufacturing Consent", "UnifrakturMaguntia", "Old English Text MT", serif',
+        fontFamily: 'Georgia, "Times New Roman", serif',
+      },
+      "type:display-2": {
+        fontFamily: 'Georgia, "Times New Roman", serif',
+      },
+      "type:display-3": {
+        fontFamily: 'Georgia, "Times New Roman", serif',
       },
     },
   },

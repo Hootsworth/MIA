@@ -142,6 +142,53 @@ def test_docx_paragraphs_and_audit_update_delete(isolated_client):
     assert [event["event_type"] for event in client.get(f"/api/documents/{doc_id}/audit").json()] == ["DOCUMENT_CREATED", "DOCUMENT_UPDATED", "DOCUMENT_DELETED"]
 
 
+def test_docx_table_text_is_extracted_in_document_order(isolated_client):
+    client, _, _ = isolated_client
+    docx = Docx()
+    docx.add_paragraph("Before the table, this prose contains enough words to pass extraction.")
+    table = docx.add_table(rows=1, cols=2)
+    table.cell(0, 0).text = "first table cell"
+    table.cell(0, 1).text = "second table cell"
+    output = io.BytesIO(); docx.save(output)
+    response = post(client, "table.docx", output.getvalue())
+    assert response.status_code == 201, response.text
+    text = client.get(f"/api/documents/{response.json()['id']}").json()["pages"][0]["text"]
+    assert text.index("Before the table") < text.index("first table cell") < text.index("second table cell")
+
+
+def test_html_visible_text_xml_and_markdown_formats(isolated_client):
+    client, _, _ = isolated_client
+    html = b"<html><head><title>ignored metadata</title></head><body><h1>Readable heading</h1><p>Visible prose has enough words for useful detector input here.</p><script>hidden invented words stay excluded</script></body></html>"
+    response = post(client, "paper.html", html)
+    assert response.status_code == 201, response.text
+    html_text = client.get(f"/api/documents/{response.json()['id']}").json()["pages"][0]["text"]
+    assert "Readable heading" in html_text and "Visible prose" in html_text
+    assert "hidden invented words" not in html_text and "ignored metadata" not in html_text
+
+    xml = b"<article><title>Structured title</title><body>XML body text contains enough words to pass extraction and be checked.</body></article>"
+    xml_response = post(client, "paper.xml", xml)
+    assert xml_response.status_code == 201, xml_response.text
+    xml_text = client.get(f"/api/documents/{xml_response.json()['id']}").json()["pages"][0]["text"]
+    assert "Structured title" in xml_text and "XML body text" in xml_text and "<article>" not in xml_text
+
+    markdown = b"# Heading\n\nMarkdown body contains enough words to pass extraction and remain readable."
+    md_response = post(client, "paper.md", markdown)
+    assert md_response.status_code == 201, md_response.text
+    assert "# Heading" in client.get(f"/api/documents/{md_response.json()['id']}").json()["pages"][0]["text"]
+
+
+def test_rtf_extracts_with_libreoffice_when_available(isolated_client):
+    import shutil
+    from backend.services.document_ingestion import extract
+
+    if shutil.which("soffice") is None:
+        pytest.skip("LibreOffice is optional for legacy Office/RTF extraction")
+    rtf = br"{\rtf1\ansi A readable RTF document has enough words for real detector input and careful review.}"
+    _, text, count, flags = extract(".rtf", rtf)
+    assert "readable RTF document" in text and count >= 10
+    assert flags[0]["code"] == "converted_with_libreoffice"
+
+
 def test_pdf_extracts_each_page_and_flags_repeated_headers(isolated_client):
     client, _, _ = isolated_client
     response = post(client, "header.pdf", pdf("Repeated Journal Header\nA page has distinct prose and enough useful words for this extraction test.", pages=2))

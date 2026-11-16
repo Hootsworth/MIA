@@ -91,7 +91,7 @@ export default function DocumentsPage() {
     {duplicateTarget && <Button type="button" label={`Open existing document: ${duplicateTarget.filename}`} variant="secondary" onClick={() => { void loadDocument(duplicateTarget.id); setDuplicateTarget(null); }} />}
     <Section variant="section" padding={5}><Stack gap={4}><Heading level={2}>Add a document</Heading>
       <form onSubmit={upload}><Stack gap={3}>
-        <FileInput label="Document (PDF, DOCX, or TXT; maximum 20 MB)" value={uploadFile} onChange={(value) => setUploadFile(value instanceof File ? value : null)} accept=".pdf,.docx,.txt" maxSize={20 * 1024 * 1024} isRequired />
+        <FileInput label="Document (PDF, DOC/DOCX, ODT, RTF, HTML, XML, Markdown, CSV, JSON, or text; max 20 MB)" value={uploadFile} onChange={(value) => setUploadFile(value instanceof File ? value : null)} accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.text,.md,.markdown,.rst,.csv,.tsv,.json,.html,.htm,.xml,.yaml,.yml,.toml,.log,.tex,.ini,.conf" maxSize={20 * 1024 * 1024} isRequired />
         <Selector label="Provenance" htmlName="provenance" value={uploadMetadata.provenance} onChange={(value) => setUploadField("provenance", value)} isRequired options={["HUMAN", "AI_GENERATED", "AI_ASSISTED"]} />
         {field("language", "Language", uploadMetadata, setUploadField, true)}
         <Selector label="Author language background" htmlName="author_language_background" value={uploadMetadata.author_language_background} onChange={(value) => setUploadField("author_language_background", value)} isRequired options={["UNKNOWN", "NATIVE", "NON_NATIVE"]} />

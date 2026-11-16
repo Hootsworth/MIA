@@ -5,6 +5,9 @@
 - PDF layout extraction is heuristic. Multi-column reading order can interleave; MIA flags some likely columns but does not guarantee correct ordering.
 - Scanned PDFs are unsupported and rejected; there is no OCR.
 - DOCX pagination is not available from the source format and is represented as one text section with paragraph boundaries.
+- Legacy DOC, ODT, and RTF extraction requires LibreOffice on the backend; DOCX does not require it.
+- HTML and XML extraction keeps visible/text-node content only. CSS layout, images, embedded documents, and OCR are not interpreted.
+- The detector supports English only and needs at least 50 words. Other uploaded documents can be stored but the model will refuse prediction.
 - Encoding detection is best-effort. Unusual encodings may be rejected rather than decoded silently.
 - Word count means whitespace-separated tokens after NFKC normalization, not a linguistic tokenizer.
 - Near-duplicate Jaccard screening uses five-word shingles and a 0.50 threshold. It is a triage flag, not an authorship or plagiarism judgment.

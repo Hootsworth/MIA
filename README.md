@@ -11,7 +11,7 @@ MIA is designed to measure detector behavior, not to help people evade detection
 
 ## Current status
 
-The Foundation, Documents, Detectors, Similarity, Experiments, Statistics, and manual Turnitin report import milestones are implemented. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. The Lab registry exposes the RoBERTa baseline and similarity detector; similarity is unavailable until a local reference index is built. Statistics analyze persisted experiments using frozen provenance labels and structured classification rules. Turnitin imports are manual, require explicit document confirmation and matching hashes, preserve censored values, and must only be used after institutional approval. Research reporting remains a later milestone.
+The Foundation, Documents, Detectors, Similarity, Experiments, Statistics, and manual Turnitin report import milestones are implemented. The home screen now supports a direct upload-to-real-inference workflow with the pinned RoBERTa detector. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. The Lab registry exposes the RoBERTa baseline and similarity detector; similarity is unavailable until a local reference index is built. Statistics analyze persisted experiments using frozen provenance labels and structured classification rules. Turnitin imports are manual, require explicit document confirmation and matching hashes, preserve censored values, and must only be used after institutional approval. Research reporting remains a later milestone.
 
 ## Quick start
 
@@ -99,9 +99,9 @@ MIA is distributed under the Apache License 2.0. See [LICENSE](LICENSE).
 
 ## Documents (Milestone 2)
 
-Run the app with `./start.sh` and open `http://localhost:3000/documents`. Upload TXT, DOCX, or PDF files up to 20 MB. Declare provenance, language, and author language background; the API validates required provenance records and stores originals unchanged under `storage/documents/`. The document detail view shows extracted page text, warnings, hashes, and metadata editing. Exact duplicate hashes are rejected with the existing record linked; near duplicates are flagged with a five-word shingle Jaccard score.
+Run the app with `./start.sh` and open `http://localhost:3000`. Choose a supported text document and MIA stores the original, extracts its text, checks the actual detector health, and runs the pinned AI detector. Declare provenance and language; MIA never infers who wrote the text. The model currently accepts English documents with at least 50 words. The document library retains full metadata and extraction details. Exact duplicate hashes are rejected with the existing record linked; near duplicates are flagged with a five-word shingle Jaccard score.
 
-PDF extraction uses PyMuPDF, DOCX extraction uses python-docx, and text encoding is detected with charset-normalizer. Scanned PDFs are rejected because this milestone does not include OCR. CSV manifests can be exported from `/api/documents/manifest.csv` and re-imported at that endpoint while their referenced files remain in local document storage. See [`docs/METHODS.md`](docs/METHODS.md) and [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) for definitions and caveats.
+PDF extraction uses PyMuPDF; DOCX uses python-docx with paragraph and table extraction; HTML and XML use structured parsers; text encoding uses charset-normalizer. Legacy DOC, ODT, and RTF use local LibreOffice conversion when installed. Scanned PDFs are rejected because MIA does not include OCR. CSV manifests can be exported from `/api/documents/manifest.csv` and re-imported while referenced files remain in local document storage. See [`docs/METHODS.md`](docs/METHODS.md) and [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) for definitions and caveats.
 
 ## Detectors (Milestone 3)
 
