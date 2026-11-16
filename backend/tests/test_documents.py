@@ -96,6 +96,16 @@ def test_ai_generated_requires_model_version_and_prompt(isolated_client):
     assert post(client, "good.txt", b"Another valid document with enough words", good).status_code == 201
 
 
+def test_ai_assisted_requires_editing_history(isolated_client):
+    client, _, _ = isolated_client
+    missing_history = declared(provenance="AI_ASSISTED", generator_model="Model", generator_version="1")
+    rejected = post(client, "assisted-missing.txt", b"A valid document with enough words to check assisted metadata.", missing_history)
+    assert rejected.status_code == 422
+    complete = {**missing_history, "editing_history": "Author revised generated sentences."}
+    accepted = post(client, "assisted-valid.txt", b"A second valid document with enough words to check assisted metadata.", complete)
+    assert accepted.status_code == 201, accepted.text
+
+
 def test_txt_latin1_decoded_and_flagged(isolated_client):
     client, _, _ = isolated_client
     response = post(client, "latin.txt", "café naïve résumé plus several words".encode("latin-1"))
@@ -104,6 +114,15 @@ def test_txt_latin1_decoded_and_flagged(isolated_client):
     assert flag["code"] == "non_utf8_encoding"
     details = client.get(f"/api/documents/{response.json()['id']}").json()
     assert "café" in details["pages"][0]["text"]
+
+
+def test_latin1_ambiguous_charset_is_not_mojibake(isolated_client):
+    client, _, _ = isolated_client
+    text = "café naïve résumé plus enough ordinary words for encoding detection."
+    response = post(client, "western.txt", text.encode("latin-1"))
+    assert response.status_code == 201, response.text
+    details = client.get(f"/api/documents/{response.json()['id']}").json()
+    assert text in details["pages"][0]["text"]
 
 
 def test_docx_paragraphs_and_audit_update_delete(isolated_client):

@@ -87,9 +87,21 @@ def extract(ext: str, data: bytes):
         pages = [{"page": None, "text": text}]
         flags.append({"code": "pagination_unavailable", "message": "DOCX pagination is not available; text is preserved by paragraph."})
     else:
-        match = from_bytes(data).best()
+        detected = from_bytes(data)
+        match = detected.best()
         if match is None:
             raise HTTPException(422, "Text encoding could not be detected")
+        # Short Western-language samples can score a Baltic code page above
+        # Windows-1252 even when that reading turns ordinary accents into
+        # unrelated characters. Prefer the Western candidate when it yields
+        # more common Latin diacritics and avoids C1 control bytes.
+        western = next((candidate for candidate in detected if candidate.encoding == "cp1252"), None)
+        if western is not None:
+            western_text = str(western)
+            best_text = str(match)
+            accents = set("áàâäãåæçéèêëíìîïñóòôöõøúùûüýÿ")
+            if sum(char.lower() in accents for char in western_text) > sum(char.lower() in accents for char in best_text):
+                match = western
         encoding = match.encoding or "unknown"
         try:
             text = str(match)

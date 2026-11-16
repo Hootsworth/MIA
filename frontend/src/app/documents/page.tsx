@@ -19,7 +19,8 @@ const blank: Metadata = { provenance: "HUMAN", language: "en", author_language_b
 export default function DocumentsPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [selected, setSelected] = useState<Doc | null>(null);
-  const [metadata, setMetadata] = useState<Metadata>(blank);
+  const [uploadMetadata, setUploadMetadata] = useState<Metadata>(blank);
+  const [editMetadata, setEditMetadata] = useState<Metadata>(blank);
   const [filter, setFilter] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,13 +35,14 @@ export default function DocumentsPage() {
   }, []);
   useEffect(() => { void refresh().catch((e: unknown) => setNotice(e instanceof Error ? e.message : "Request failed")); }, [refresh]);
 
-  const setField = (key: keyof Metadata, value: string) => setMetadata((current) => ({ ...current, [key]: value }));
+  const setUploadField = (key: keyof Metadata, value: string) => setUploadMetadata((current) => ({ ...current, [key]: value }));
+  const setEditField = (key: keyof Metadata, value: string) => setEditMetadata((current) => ({ ...current, [key]: value }));
   const loadDocument = async (id: string) => {
     const response = await fetch(`${API}/api/documents/${id}`);
     const body = await response.json();
     if (!response.ok) { setNotice(body.detail ?? "Unable to load document"); return; }
     setSelected(body as Doc);
-    setMetadata((body as Doc).metadata);
+    setEditMetadata((body as Doc).metadata);
     const auditResponse = await fetch(`${API}/api/documents/${id}/audit`);
     if (auditResponse.ok) setAudit(await auditResponse.json() as {event_type:string;created_at:string}[]);
   };
@@ -56,7 +58,7 @@ export default function DocumentsPage() {
       const response = await fetch(`${API}/api/documents`, { method: "POST", body });
       const result = await response.json();
       if (!response.ok) { if (response.status === 409 && result.detail?.existing_document_id) setDuplicateTarget({ id: result.detail.existing_document_id, filename: result.detail.existing_filename }); throw new Error(typeof result.detail === "string" ? result.detail : result.detail?.message ?? JSON.stringify(result.detail)); }
-      setNotice(`Saved ${result.filename} · ${result.word_count} words`); form.reset(); setMetadata(blank); setUploadFile(null); await refresh(); await loadDocument(result.id);
+      setNotice(`Saved ${result.filename} · ${result.word_count} words`); form.reset(); setUploadMetadata(blank); setUploadFile(null); await refresh(); await loadDocument(result.id);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Upload failed"); }
     finally { setBusy(false); }
   };
@@ -75,7 +77,7 @@ export default function DocumentsPage() {
   const exportManifest = () => { window.location.href = `${API}/api/documents/manifest.csv`; };
   const importManifest = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const file = manifestFile; if (!file) { setNotice("Choose a manifest first."); return; } const data = new FormData(); data.append("file", file); const response = await fetch(`${API}/api/documents/manifest.csv`, { method: "POST", body: data }); const result = await response.json(); setNotice(response.ok ? `Imported ${result.imported} manifest rows.` : result.detail ?? "Manifest import failed."); await refresh(); };
   const visible = docs.filter((doc) => `${doc.filename} ${doc.metadata.provenance} ${doc.metadata.language}`.toLowerCase().includes(filter.toLowerCase()));
-  const field = (name: keyof Metadata, label: string, required = false) => <TextInput htmlName={name} label={label} value={metadata[name] ?? ""} isRequired={required} onChange={(value) => setField(name, value)} />;
+  const field = (name: keyof Metadata, label: string, metadata: Metadata, onChange: (key: keyof Metadata, value: string) => void, required = false) => <TextInput htmlName={name} label={label} value={metadata[name] ?? ""} isRequired={required} onChange={(value) => onChange(name, value)} />;
 
   return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}><Stack hAlign="center"><Stack as="main" width="100%" maxWidth="76rem" gap={6}>
     <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / DOCUMENTS</Text><Heading level={1} type="display-1">Document library</Heading><Text as="p" color="secondary">Declared provenance and extraction notes stay attached to each original.</Text></Stack>
@@ -84,12 +86,12 @@ export default function DocumentsPage() {
     <Section variant="section" padding={5}><Stack gap={4}><Heading level={2}>Add a document</Heading>
       <form onSubmit={upload}><Stack gap={3}>
         <FileInput label="Document (PDF, DOCX, or TXT; maximum 20 MB)" value={uploadFile} onChange={(value) => setUploadFile(value instanceof File ? value : null)} accept=".pdf,.docx,.txt" maxSize={20 * 1024 * 1024} isRequired />
-        <Selector label="Provenance" htmlName="provenance" value={metadata.provenance} onChange={(value) => setField("provenance", value)} isRequired options={["HUMAN", "AI_GENERATED", "AI_ASSISTED"]} />
-        {field("language", "Language", true)}
-        <Selector label="Author language background" htmlName="author_language_background" value={metadata.author_language_background} onChange={(value) => setField("author_language_background", value)} isRequired options={["UNKNOWN", "NATIVE", "NON_NATIVE"]} />
-        {field("domain", "Academic domain")}{field("genre", "Genre")}
-        {metadata.provenance === "HUMAN" && <>{field("source", "Source", true)}{field("license", "License (or provide consent below)")}{field("consent", "Consent record")}</>}
-        {metadata.provenance !== "HUMAN" && <>{field("generator_model", "Generator model", true)}{field("generator_version", "Generator version", true)}{metadata.provenance === "AI_GENERATED" ? field("prompt_reference", "Prompt reference", true) : field("editing_history", "Editing history", true)}</>}
+        <Selector label="Provenance" htmlName="provenance" value={uploadMetadata.provenance} onChange={(value) => setUploadField("provenance", value)} isRequired options={["HUMAN", "AI_GENERATED", "AI_ASSISTED"]} />
+        {field("language", "Language", uploadMetadata, setUploadField, true)}
+        <Selector label="Author language background" htmlName="author_language_background" value={uploadMetadata.author_language_background} onChange={(value) => setUploadField("author_language_background", value)} isRequired options={["UNKNOWN", "NATIVE", "NON_NATIVE"]} />
+        {field("domain", "Academic domain", uploadMetadata, setUploadField)}{field("genre", "Genre", uploadMetadata, setUploadField)}
+        {uploadMetadata.provenance === "HUMAN" && <>{field("source", "Source", uploadMetadata, setUploadField, true)}{field("license", "License (or provide consent below)", uploadMetadata, setUploadField)}{field("consent", "Consent record", uploadMetadata, setUploadField)}</>}
+        {uploadMetadata.provenance !== "HUMAN" && <>{field("generator_model", "Generator model", uploadMetadata, setUploadField, true)}{field("generator_version", "Generator version", uploadMetadata, setUploadField, true)}{uploadMetadata.provenance === "AI_GENERATED" ? field("prompt_reference", "Prompt reference", uploadMetadata, setUploadField, true) : field("editing_history", "Editing history", uploadMetadata, setUploadField, true)}</>}
         <Button type="submit" label={busy ? "Working…" : "Upload and extract"} variant="primary" isDisabled={busy} />
       </Stack></form>
     </Stack></Section>
@@ -101,10 +103,10 @@ export default function DocumentsPage() {
       {selected.duplicate_flags.map((flag) => <Text key={flag.document_id} as="p" color="accent">Near duplicate of {flag.filename} · Jaccard {flag.jaccard}</Text>)}
       <Heading level={3}>Edit declared metadata</Heading>
       <form onSubmit={saveMetadata}><Stack gap={3}>
-        <Selector label="Provenance" htmlName="provenance" value={metadata.provenance} onChange={(value) => setField("provenance", value)} options={["HUMAN", "AI_GENERATED", "AI_ASSISTED"]} />
-        {field("language", "Language", true)}
-        <Selector label="Author language background" htmlName="author_language_background" value={metadata.author_language_background} onChange={(value) => setField("author_language_background", value)} options={["UNKNOWN", "NATIVE", "NON_NATIVE"]} />
-        {(["domain", "genre", "source", "license", "consent", "generator_model", "generator_version", "prompt_reference", "editing_history"] as const).map((key) => <TextInput key={key} htmlName={key} label={key.replaceAll("_", " ")} value={metadata[key] ?? ""} onChange={(value) => setField(key, value)} />)}
+        <Selector label="Provenance" htmlName="provenance" value={editMetadata.provenance} onChange={(value) => setEditField("provenance", value)} options={["HUMAN", "AI_GENERATED", "AI_ASSISTED"]} />
+        {field("language", "Language", editMetadata, setEditField, true)}
+        <Selector label="Author language background" htmlName="author_language_background" value={editMetadata.author_language_background} onChange={(value) => setEditField("author_language_background", value)} options={["UNKNOWN", "NATIVE", "NON_NATIVE"]} />
+        {(["domain", "genre", "source", "license", "consent", "generator_model", "generator_version", "prompt_reference", "editing_history"] as const).map((key) => <TextInput key={key} htmlName={key} label={key.replaceAll("_", " ")} value={editMetadata[key] ?? ""} onChange={(value) => setEditField(key, value)} />)}
         <Button type="submit" label="Save metadata" variant="primary" isDisabled={busy} /><Button type="button" label="Archive document" variant="secondary" onClick={() => void remove()} />
       </Stack></form>
       <Heading level={3}>Audit history</Heading>{audit.map((event, index) => <Text key={`${event.event_type}-${index}`} as="p">{event.event_type} · {new Date(event.created_at).toLocaleString()}</Text>)}
