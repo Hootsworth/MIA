@@ -61,7 +61,7 @@ export default function ReportsPage() {
     integrity: `MD ${report.markdown_sha256?.slice(0, 12) ?? "—"} · CSV ${report.csv_sha256?.slice(0, 12) ?? "—"}`,
   })), [reports]);
 
-  return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}><Stack hAlign="center"><Stack as="main" width="100%" maxWidth="76rem" gap={6}>
+  return <Section width="100%" paddingInline={5} paddingBlock={6}><Stack hAlign="center"><Stack width="100%" maxWidth="76rem" gap={6}>
     <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / REPORTS</Text><Heading level={1} type="display-1">Research reports</Heading><Text as="p" color="secondary">Generate and download reproducible Markdown summaries and CSV exports from completed experiment data.</Text></Stack>
     <Section variant="section" padding={5}><Stack gap={3}><Heading level={2}>Create a report</Heading><Text as="p" color="secondary">MIA uses the frozen experiment protocol and stored result rows. It does not fabricate missing values or re-run detector inference.</Text>
       {experiments.length > 0 ? <><Selector label="Completed experiment" value={selectedId} onChange={setSelectedId} options={experiments.map((row) => ({ value: row.id, label: row.name }))} /><Button type="button" label={busy ? "Generating report…" : "Generate Markdown + CSV"} variant="primary" isDisabled={busy || !selectedId} onClick={() => void generate()} /></> : <Text as="p">No completed experiments are ready to report. Complete an experiment with an analyzable M6 protocol first.</Text>}

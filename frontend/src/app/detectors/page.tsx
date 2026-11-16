@@ -69,7 +69,7 @@ export default function DetectorsPage() {
 
   const detector = detectors.find((item) => item.key === selectedKey) ?? detectors[0];
   const eligible = documents.filter((document) => document.word_count >= (detector?.minimum_words ?? 50));
-  return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}><Stack hAlign="center"><Stack as="main" width="100%" maxWidth="76rem" gap={6}>
+  return <Section width="100%" paddingInline={5} paddingBlock={6}><Stack hAlign="center"><Stack width="100%" maxWidth="76rem" gap={6}>
     <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / DETECTORS</Text><Heading level={1} type="display-1">Detector registry</Heading><Text as="p" color="secondary">Availability is recorded only after the model performs real inference. Scores describe the model output, not authorship certainty.</Text></Stack>
     {notice && <Text as="p" aria-live="polite" color="secondary">{notice}</Text>}
     {detectors.length > 1 && <Selector label="Detector" value={selectedKey} onChange={(value) => { setSelectedKey(value); setResult(null); setNotice(""); }} options={detectors.map((item) => ({ value: item.key, label: `${item.name} · ${item.status.replaceAll("_", " ")}` }))} />}

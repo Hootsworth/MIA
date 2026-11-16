@@ -129,7 +129,7 @@ export default function ExperimentsPage() {
   const detectorOptions: Option[] = detectors.map((detector) => ({ value: detector.key, label: `${detector.name} · ${detector.status.replaceAll("_", " ")}` }));
   const detectorSemantics = Object.fromEntries(detectors.map((detector) => [detector.key, detector.score_semantics ?? "unknown"]));
 
-  return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}><Stack hAlign="center"><Stack as="main" width="100%" maxWidth="76rem" gap={6}>
+  return <Section width="100%" paddingInline={5} paddingBlock={6}><Stack hAlign="center"><Stack width="100%" maxWidth="76rem" gap={6}>
     <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / EXPERIMENTS</Text><Heading level={1} type="display-1">Experiments</Heading><Text as="p" color="secondary">Freeze provenance labels, score direction, and threshold before running. Analysis uses the stored results and reports sample sizes and uncertainty.</Text></Stack>
     {notice && <Text as="p" aria-live="polite" color="secondary">{notice}</Text>}
     <Section variant="section" padding={5}><Stack gap={4}>

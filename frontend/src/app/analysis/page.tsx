@@ -90,7 +90,7 @@ export default function AnalysisPage() {
     return { id: `${row.detector}-${group}-${cell.value}`, detector: row.detector, grouping: group, value: cell.value,
       n: cell.n, sample: cell.unreliable ? "n too small · descriptive only" : "Estimate available", estimates };
   })));
-  return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}><Stack hAlign="center"><Stack as="main" width="100%" maxWidth="76rem" gap={6}>
+  return <Section width="100%" paddingInline={5} paddingBlock={6}><Stack hAlign="center"><Stack width="100%" maxWidth="76rem" gap={6}>
     <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / ANALYSIS</Text><Heading level={1} type="display-1">Analysis</Heading><Text as="p" color="secondary">Read-only charts and estimates from stored detector outputs. MIA never infers provenance from scores.</Text></Stack>
     {experiments.length > 0 && <Selector label="Finished experiment" value={selectedId} onChange={setSelectedId} options={experiments.map((row) => ({ value: row.id, label: `${row.name} · ${row.status}` }))} />}
     {notice && <Text as="p" aria-live="polite" color="secondary">{notice}</Text>}

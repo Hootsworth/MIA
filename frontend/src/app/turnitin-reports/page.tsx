@@ -101,7 +101,7 @@ export default function TurnitinReportsPage() {
     return score.state === "value" ? `${score.raw} (${score.value}%)` : `${score.raw ?? ""} · ${score.state.replaceAll("_", " ")}`;
   }
 
-  return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}><Stack hAlign="center"><Stack as="main" width="100%" maxWidth="76rem" gap={6}>
+  return <Section width="100%" paddingInline={5} paddingBlock={6}><Stack hAlign="center"><Stack width="100%" maxWidth="76rem" gap={6}>
     <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / REPORT IMPORT</Text><Heading level={1} type="display-1">Turnitin reports</Heading><Text as="p" color="secondary">Manual import only. Use this only for institution-authorised reports. MIA has no Turnitin API access and does not submit documents.</Text></Stack>
     {notice && <Text as="p" aria-live="polite" color="secondary">{notice}</Text>}
     <Section variant="section" padding={5}><Stack gap={4}><Heading level={2}>Import an original report</Heading>

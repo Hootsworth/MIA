@@ -157,25 +157,18 @@ export default function Home() {
   const detectorLabel = detector?.status === "operational" ? "Model ready" : detector?.status === "unavailable" ? "Model unavailable" : "Model not checked";
   const busy = ["uploading", "checking", "predicting"].includes(stage);
 
-  return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}>
+  return <Section width="100%" paddingInline={5} paddingBlock={6}>
     <Stack hAlign="center">
-      <Stack as="main" width="100%" maxWidth="76rem" gap={6}>
+      <Stack width="100%" maxWidth="76rem" gap={6}>
         <Stack direction="horizontal" hAlign="between" vAlign="center" gap={3} wrap="wrap">
-          <Stack gap={0.5}><Text type="label" color="accent">MIA · LOCAL TEXT ANALYSIS</Text><Heading level={1} type="display-1">AI writing detection</Heading></Stack>
+          <Stack gap={0.5}><Text type="label" color="accent">MIA · LOCAL TEXT ANALYSIS</Text><Heading level={1} type="display-2">Analyze a document</Heading></Stack>
           <Stack direction="horizontal" gap={3} wrap="wrap" aria-label="Application status">
             <StatusDot variant={backendVariant} label={backendLabel} isPulsing={backendState === "checking"} />
             <StatusDot variant={detectorVariant} label={detectorLabel} />
           </Stack>
         </Stack>
 
-        <Section variant="section" padding={5}>
-          <Stack gap={3}>
-            <Text type="label" color="secondary">A REAL MODEL. A CAREFUL READ OF ITS LIMITS.</Text>
-            <Heading level={2} type="display-2">See what the text detector says.</Heading>
-            <Text as="p" type="large" color="secondary">Upload a document and MIA will extract its text, run the pinned RoBERTa detector, and show the saved result with its model and version.</Text>
-            <Text as="p" color="secondary">This installation sends the file to its configured MIA backend. Detection runs there with the open model; MIA does not call a commercial detector API.</Text>
-          </Stack>
-        </Section>
+        <Text as="p" type="large" color="secondary">Upload text for analysis with MIA’s pinned open detector. Results are model output, not proof of authorship.</Text>
 
         {backendState === "offline" && <Section variant="section" padding={4}><Stack gap={2}><Heading level={3}>MIA backend unavailable</Heading><Text as="p" aria-live="polite" color="accent">{backendError}</Text><Button type="button" label="Retry connection" variant="secondary" onClick={() => void refreshStatus()} /></Stack></Section>}
         {notice && <Text as="p" aria-live="polite" color={stage === "error" ? "accent" : "secondary"}>{notice}</Text>}

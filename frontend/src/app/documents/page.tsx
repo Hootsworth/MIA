@@ -87,7 +87,7 @@ export default function DocumentsPage() {
   const visible = docs.filter((doc) => `${doc.filename} ${doc.metadata.provenance} ${doc.metadata.language}`.toLowerCase().includes(filter.toLowerCase()));
   const field = (name: keyof Metadata, label: string, metadata: Metadata, onChange: (key: keyof Metadata, value: string) => void, required = false) => <TextInput htmlName={name} label={label} value={metadata[name] ?? ""} isRequired={required} onChange={(value) => onChange(name, value)} />;
 
-  return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}><Stack hAlign="center"><Stack as="main" width="100%" maxWidth="76rem" gap={6}>
+  return <Section width="100%" paddingInline={5} paddingBlock={6}><Stack hAlign="center"><Stack width="100%" maxWidth="76rem" gap={6}>
     <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / DOCUMENTS</Text><Heading level={1} type="display-1">Document library</Heading><Text as="p" color="secondary">Declared provenance and extraction notes stay attached to each original.</Text></Stack>
     {notice && <Text as="p" aria-live="polite">{notice}</Text>}
     {duplicateTarget && <Button type="button" label={`Open existing document: ${duplicateTarget.filename}`} variant="secondary" onClick={() => { void loadDocument(duplicateTarget.id); setDuplicateTarget(null); }} />}
