@@ -9,7 +9,7 @@ This repository currently provides the API/database foundation, a standalone imp
 ## Requirements and setup
 
 - Python 3.12+
-- Node.js LTS (20+)
+- Node.js 20 or newer
 
 Copy `.env.example` to `.env` if you want to change defaults. Start both services with `./start.sh`; press Ctrl+C in that terminal to stop them. The database is created at `data/turnout.db`.
 
