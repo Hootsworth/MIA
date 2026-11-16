@@ -16,7 +16,7 @@ if (( NODE_MAJOR < 20 )); then echo "Node.js 20 or newer is required; found $(no
 mkdir -p data storage/documents storage/reports storage/exports storage/logs
 if [[ ! -d .venv ]]; then "$PYTHON" -m venv .venv; fi
 .venv/bin/python -m pip install -r backend/requirements.txt
-.venv/bin/python -m pip install --no-build-isolation --no-deps ./packages/turnout-detect
+.venv/bin/python -m pip install --no-build-isolation --no-deps ./packages/mia-detect
 if [[ ! -d frontend/node_modules ]]; then (cd frontend && npm install); fi
 
 .venv/bin/python -c 'from backend.core.database import init_db; init_db()'
@@ -28,12 +28,12 @@ cleanup() {
   trap - INT TERM EXIT
   kill "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
   wait "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
-  rm -f .turnout-pids
+  rm -f .mia-pids
 }
-printf '%s\n%s\n' "$BACKEND_PID" "$FRONTEND_PID" > .turnout-pids
+printf '%s\n%s\n' "$BACKEND_PID" "$FRONTEND_PID" > .mia-pids
 trap cleanup INT TERM EXIT
-echo "TurnOut is starting. Frontend: http://localhost:3000 | Backend: http://localhost:8000 | API docs: http://localhost:8000/docs"
-while [[ -f .turnout-pids ]] && kill -0 "$BACKEND_PID" 2>/dev/null && kill -0 "$FRONTEND_PID" 2>/dev/null; do sleep 1; done
-if [[ ! -f .turnout-pids ]]; then exit 0; fi
-echo "A TurnOut server stopped. Check storage/logs/ for details." >&2
+echo "MIA is starting. Frontend: http://localhost:3000 | Backend: http://localhost:8000 | API docs: http://localhost:8000/docs"
+while [[ -f .mia-pids ]] && kill -0 "$BACKEND_PID" 2>/dev/null && kill -0 "$FRONTEND_PID" 2>/dev/null; do sleep 1; done
+if [[ ! -f .mia-pids ]]; then exit 0; fi
+echo "A MIA server stopped. Check storage/logs/ for details." >&2
 exit 1

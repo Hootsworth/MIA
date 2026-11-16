@@ -11,4 +11,4 @@ storage/**
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
-.turnout-pids
+.mia-pids

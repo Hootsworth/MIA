@@ -1,13 +1,13 @@
-# TurnOut: Open Detector Toolkit and Evaluation Lab
+# MIA: Open Detector Toolkit and Evaluation Lab
 
 > Save this file as `SPEC.md` in the repo root. To the coding agent: read this whole file, then follow the **Working Agreement** (section 9). Implement **one milestone per session** and stop.
 
 ## 1. Mission
 
-TurnOut is an open-source project that makes plagiarism and AI-writing detection **transparent and measurable**. It has two parts:
+MIA is an open-source project that makes plagiarism and AI-writing detection **transparent and measurable**. It has two parts:
 
-1. **`turnout-detect`**: a clean-room Python library implementing publicly documented detection methods (text similarity and AI-text detection). This is the part people read, fork, and cite.
-2. **`turnout-lab`**: a research harness (API, database, UI) that evaluates detectors against labeled ground truth, including commercial tools such as Turnitin through **manually imported reports only**.
+1. **`mia-detect`**: a clean-room Python library implementing publicly documented detection methods (text similarity and AI-text detection). This is the part people read, fork, and cite.
+2. **`mia-lab`**: a research harness (API, database, UI) that evaluates detectors against labeled ground truth, including commercial tools such as Turnitin through **manually imported reports only**.
 
 The goal is understanding: how well do these detectors work, for whom, and where do they fail. It is **not** to copy proprietary systems and **not** to help anyone evade detection.
 
@@ -49,13 +49,13 @@ Binoculars, Fast-DetectGPT, multi-user auth and roles, Playwright E2E suite, Ale
 ## 5. Architecture
 
 ```
-turnout/
+mia/
 ├── packages/
-│   └── turnout-detect/        # publishable library, no web/DB dependencies
+│   └── mia-detect/        # publishable library, no web/DB dependencies
 │       ├── similarity/        # normalize, shingle, winnow, index, match
 │       ├── ai_text/           # detector implementations
 │       └── tests/
-├── backend/                   # FastAPI + SQLAlchemy + SQLite (data/turnout.db)
+├── backend/                   # FastAPI + SQLAlchemy + SQLite (data/mia.db)
 │   ├── api/ core/ models/ schemas/ services/ analytics/ reports/ tests/
 ├── frontend/                  # Next.js (App Router), TypeScript, Tailwind
 ├── data/                      # SQLite + dataset manifests (not raw corpora)
@@ -65,10 +65,10 @@ turnout/
 ```
 
 Rules:
-- `turnout-detect` must be installable and usable **without** the backend or frontend. Keep it dependency-light and well documented, because it is the deliverable people study.
+- `mia-detect` must be installable and usable **without** the backend or frontend. Keep it dependency-light and well documented, because it is the deliverable people study.
 - Every detector implements one adapter interface (`metadata`, `validate`, `predict`, `health_check`) and returns a typed result (section 6.2).
 - Native macOS on Apple Silicon: use MPS when supported, CPU fallback otherwise. `./start.sh` checks prerequisites, sets up environments, runs migrations (or `create_all` in v1), starts backend and frontend, and prints URLs. `./stop.sh` shuts down cleanly.
-- SQLite at `data/turnout.db`, UUID primary keys, foreign keys enforced, timestamps on all rows, JSON columns for variable metadata.
+- SQLite at `data/mia.db`, UUID primary keys, foreign keys enforced, timestamps on all rows, JSON columns for variable metadata.
 
 Core tables (v1): `documents`, `datasets`, `dataset_documents`, `detectors`, `detector_versions`, `experiments`, `experiment_documents`, `results`, `turnitin_reports`, `highlighted_passages`, `audit_events`, `generated_reports`.
 
@@ -94,7 +94,7 @@ class DetectorAdapter:
 
 v1 detectors:
 - **RoBERTa OpenAI detector** (Hugging Face). Document its known limits (trained on GPT-2 outputs, dated).
-- **Similarity checker** (`turnout-detect.similarity`): text normalization, k-word shingling, hashing, winnowing fingerprints, inverted index over an open reference corpus, match spans with source attribution, per-source overlap score.
+- **Similarity checker** (`mia-detect.similarity`): text normalization, k-word shingling, hashing, winnowing fingerprints, inverted index over an open reference corpus, match spans with source attribution, per-source overlap score.
 
 A detector is "operational" only after a real inference passes `health_check`. If weights are missing or hardware is unsupported, show the exact reason.
 
@@ -158,7 +158,7 @@ Document in `docs/DATASETS.md`, and **verify each license before use**.
 3. Do not start a later milestone or any v2 item without being told.
 4. Never mark something complete unless it was run and verified. Say "not verified" when that is the case.
 5. If a requirement conflicts with the Hard Boundaries, stop and ask.
-6. Prefer simple, readable code in `turnout-detect`. Others will study it.
+6. Prefer simple, readable code in `mia-detect`. Others will study it.
 
 **Milestone report template**
 ```
@@ -175,10 +175,10 @@ Next milestone prerequisites: <list>
 
 | # | Name | Exit criteria |
 |---|------|---------------|
-| 1 | Foundation | Repo layout, `./start.sh` runs both servers, SQLite schema created, health endpoint, `turnout-detect` installable, LICENSE and README present |
+| 1 | Foundation | Repo layout, `./start.sh` runs both servers, SQLite schema created, health endpoint, `mia-detect` installable, LICENSE and README present |
 | 2 | Documents | Upload TXT/DOCX/PDF, PyMuPDF extraction with quality warnings, provenance and language-background metadata, duplicate detection, document explorer |
 | 3 | Detectors | Adapter interface; RoBERTa detector runs real inference on MPS or CPU; results persisted; `health_check` works; unavailable-detector reasons shown |
-| 4 | Similarity | Winnowing similarity checker in `turnout-detect`, indexed over an open corpus, with tests on known-overlap fixtures |
+| 4 | Similarity | Winnowing similarity checker in `mia-detect`, indexed over an open corpus, with tests on known-overlap fixtures |
 | 5 | Experiments | Create, run, cancel, resume; persistent progress; immutable protocol; classification rule required |
 | 6 | Statistics | All metrics with bootstrap CIs, subgroup analysis, n reporting, leakage and censoring tests passing |
 | 7 | Turnitin import | Manual import with mismatch safeguards, censored-value handling, report storage |
@@ -192,7 +192,7 @@ Next milestone prerequisites: <list>
 - A Turnitin report can be imported, validated, and associated without mismatches.
 - A research report is generated with reproducibility metadata.
 - All critical tests pass; failures surface honestly.
-- `turnout-detect` can be installed and used standalone.
+- `mia-detect` can be installed and used standalone.
 - No fabricated results exist anywhere in the codebase or UI.
 - `docs/LIMITATIONS.md` states what the platform can and cannot establish.
 

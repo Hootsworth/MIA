@@ -17,7 +17,7 @@ export default function Home() {
   }, []);
 
   return <main className="mx-auto min-h-screen max-w-4xl px-8 py-20">
-    <p className="text-sm uppercase tracking-[0.2em] text-emerald-800">TurnOut · Research lab</p>
+    <p className="text-sm uppercase tracking-[0.2em] text-emerald-800">MIA · Research lab</p>
     <h1 className="mt-5 text-5xl font-semibold tracking-tight">Open detector evaluation</h1>
     <p className="mt-4 max-w-xl text-lg text-neutral-600">A transparent workspace for measuring what text detectors can and cannot tell us.</p>
     <section className="mt-12 rounded-xl border border-neutral-200 bg-white p-6" aria-live="polite">

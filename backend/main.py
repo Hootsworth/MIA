@@ -12,7 +12,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="TurnOut Lab API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="MIA Lab API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -23,4 +23,4 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "turnout-lab-api"}
+    return {"status": "ok", "service": "mia-lab-api"}

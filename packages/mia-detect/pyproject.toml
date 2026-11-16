@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "turnout-detect"
+name = "mia-detect"
 version = "0.1.0"
 description = "Standalone, clean-room detection research toolkit"
 readme = "README.md"

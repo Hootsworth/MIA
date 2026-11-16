@@ -1,26 +1,98 @@
-# TurnOut
+# MIA
 
-TurnOut is an open research toolkit for measuring the limits of plagiarism and AI-writing detectors. It uses clean-room implementations of documented methods and real, declared research data. Turnitin is supported only through manually imported reports; this project does not automate access to commercial detectors or provide evasion tools.
+**MIA (Maybe It’s AI)** is an open-source research toolkit for examining how AI-writing and text-similarity detectors perform, where they fail, and how reliable their scores are. The name expansion is background; the app uses **MIA**.
 
-## Foundation milestone
+The project has two parts:
 
-This repository currently provides the API/database foundation, a standalone importable `turnout-detect` package skeleton, and a small frontend health view. Document ingestion, detector implementations, experiments, and evaluation reports are later milestones and are not available yet.
+- **`mia-detect`** — a small, standalone Python package for clean-room implementations of methods described in public research and documentation.
+- **MIA Lab** — a research application for managing declared research data, running reproducible evaluations, and reporting results.
 
-## Requirements and setup
+MIA is designed to measure detector behavior, not to help people evade detection. Commercial detector results, including Turnitin, may only be included through reports submitted and imported manually by an authorized researcher.
 
-- Python 3.12+
+## Current status
+
+The repository is at the Foundation milestone. It includes a FastAPI service, a SQLite schema, a Next.js status page, and an installable `mia-detect` package skeleton. The status page checks the real API health endpoint. Document ingestion, detector implementations, experiments, statistical analysis, and report generation are planned milestones and are not implemented yet.
+
+## Quick start
+
+Requirements:
+
+- Python 3.12 or newer
 - Node.js 20 or newer
 
-Copy `.env.example` to `.env` if you want to change defaults. Start both services with `./start.sh`; press Ctrl+C in that terminal to stop them. The database is created at `data/turnout.db`.
+Start both services from the repository root:
 
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
-- API docs: http://localhost:8000/docs
+```sh
+./start.sh
+```
 
-For a machine with multiple Python versions, run `PYTHON=/path/to/python3.12 ./start.sh`.
+If `python3` on your machine points to an older Python, select the installed interpreter explicitly:
+
+```sh
+PYTHON=python3.12 ./start.sh
+```
+
+The first start creates a virtual environment, installs backend and frontend dependencies, creates the SQLite schema, and installs `mia-detect`. Press **Ctrl+C** in the start terminal or run `./stop.sh` to stop the services.
+
+| Service | Address |
+| --- | --- |
+| MIA Lab | http://localhost:3000 |
+| API | http://localhost:8000 |
+| API documentation | http://localhost:8000/docs |
+| Health endpoint | http://localhost:8000/api/health |
+
+The database lives at `data/mia.db`. Set `MIA_DATABASE_URL` to use another SQLAlchemy database URL. Set `NEXT_PUBLIC_API_URL` to change the frontend’s API address; defaults are in `.env.example`.
 
 ## Tests
 
-After setup, run `make test`. The backend tests cover health, schema creation, foreign keys, and uniqueness; package tests verify its standalone import.
+Run the backend and standalone package tests with:
 
-See [SPEC.md](SPEC.md) for scope, research questions, data requirements, hard boundaries, and milestone plan. See `docs/` for project methods and dataset planning.
+```sh
+.venv/bin/python -m pytest
+```
+
+The current tests cover API health, schema creation, SQLite foreign keys and uniqueness, and installation/import of `mia-detect` without application dependencies.
+
+## Use `mia-detect` on its own
+
+The detector package has no web, database, or runtime dependencies. Install it from this repository:
+
+```sh
+python -m pip install ./packages/mia-detect
+```
+
+Then import the package:
+
+```python
+import mia_detect
+
+print(mia_detect.__version__)
+```
+
+The package currently provides its module structure only. Detection methods will be implemented in their own milestones and documented with their limitations and score semantics.
+
+## Research and privacy principles
+
+- Implement methods from public papers and documentation; never copy proprietary code, weights, or datasets.
+- Treat authorship as declared provenance. Never infer it from detector output or writing style.
+- Use public-licensed or consented research documents, and keep identity separate from experiment identifiers.
+- Do not automate or scrape commercial detectors. Import their reports manually only when authorized.
+- Never fabricate detector output or metrics. Failures and unavailable models must remain visible as failures.
+- Do not build paraphrasing, humanizing, or detector-bypass features.
+
+See [SPEC.md](SPEC.md) for the requirements and hard boundaries, and [docs/ROADMAP.md](docs/ROADMAP.md) for milestones, verification steps, and failure handling. Dataset planning and current limitations are documented in [docs/DATASETS.md](docs/DATASETS.md) and [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+
+## Project layout
+
+```text
+backend/                 FastAPI, SQLAlchemy models, tests
+frontend/                Next.js App Router UI
+packages/mia-detect/     Standalone Python package
+data/                    SQLite database and dataset manifests
+storage/                 Local documents, reports, exports, and logs
+docs/                    Methods, dataset policy, limitations, roadmap
+```
+
+## License
+
+MIA is distributed under the Apache License 2.0. See [LICENSE](LICENSE).

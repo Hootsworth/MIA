@@ -1,4 +1,4 @@
-# TurnOut Roadmap: Milestones, Expected Results, and Decision Trees
+# MIA Roadmap: Milestones, Expected Results, and Decision Trees
 
 Companion to `SPEC.md`. Put this at `docs/ROADMAP.md`. The spec says **what** to build; this says **in what order, what you should see, and what to do when you don't**.
 
@@ -40,7 +40,7 @@ Companion to `SPEC.md`. Put this at `docs/ROADMAP.md`. The spec says **what** to
 
 **Expected results**
 - Backend returns `{"status":"ok", ...}` at `/api/health`; the frontend page shows "backend: ok".
-- The DB file exists at `data/turnout.db`; `sqlite3 data/turnout.db ".tables"` lists all 12 tables.
+- The DB file exists at `data/mia.db`; `sqlite3 data/mia.db ".tables"` lists all 12 tables.
 - Tests: 5 or more passing, no failures.
 - Cold start to both URLs live: usually under about 60 seconds after dependencies are installed.
 
@@ -161,7 +161,7 @@ Companion to `SPEC.md`. Put this at `docs/ROADMAP.md`. The spec says **what** to
 
 ## Milestone 4: Similarity checker (the clean-room core)
 
-**Objective:** a readable, correct winnowing-based similarity engine in `turnout-detect`, usable standalone.
+**Objective:** a readable, correct winnowing-based similarity engine in `mia-detect`, usable standalone.
 
 **Prerequisites:** a small open reference corpus (for example a few thousand Wikipedia articles or a PAN plagiarism subset, license verified).
 
@@ -172,7 +172,7 @@ Companion to `SPEC.md`. Put this at `docs/ROADMAP.md`. The spec says **what** to
 4. Inverted index (hash → document + positions) in SQLite or a simple on-disk structure; keep it behind an interface so it can be swapped.
 5. Matching: for a query document, collect matching fingerprints per source, merge adjacent matches into spans, compute overlap score per source (and overall).
 6. Output: ranked sources, matched spans in both query and source (character offsets), overlap percentages.
-7. CLI: `turnout-detect index <dir>`, `turnout-detect check <file>`.
+7. CLI: `mia-detect index <dir>`, `mia-detect check <file>`.
 8. Wire it into the detector adapter framework as a second detector (score semantics: `percentage` overlap, not a probability).
 9. `docs/METHODS.md` section explaining normalization, k, w, tradeoffs, and limits.
 

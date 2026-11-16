@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 ROOT = Path(__file__).resolve().parents[2]
-DATABASE_URL = os.getenv("TURNOUT_DATABASE_URL", f"sqlite:///{ROOT / 'data' / 'turnout.db'}")
+DATABASE_URL = os.getenv("MIA_DATABASE_URL", f"sqlite:///{ROOT / 'data' / 'mia.db'}")
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
 if DATABASE_URL.startswith("sqlite"):

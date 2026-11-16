@@ -1,1 +1,1 @@
-"""TurnOut research lab backend."""
+"""MIA research lab backend."""

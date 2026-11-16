@@ -13,7 +13,7 @@ def test_installs_and_imports_without_project_dependencies(tmp_path):
         check=True, capture_output=True, text=True, env=env,
     )
     result = subprocess.run(
-        [sys.executable, "-c", "import turnout_detect; print(turnout_detect.__version__)"],
+        [sys.executable, "-c", "import mia_detect; print(mia_detect.__version__)"],
         check=True, capture_output=True, text=True, env=env,
     )
     assert result.stdout.strip() == "0.1.0"

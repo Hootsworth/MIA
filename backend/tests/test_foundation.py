@@ -8,7 +8,7 @@ from backend.models import Dataset, DatasetDocument, Document
 def test_health(client):
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "service": "turnout-lab-api"}
+    assert response.json() == {"status": "ok", "service": "mia-lab-api"}
 
 
 def test_database_creation(db):
