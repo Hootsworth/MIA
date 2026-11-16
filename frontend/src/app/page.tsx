@@ -1,5 +1,10 @@
 "use client";
 
+import { Heading } from "@astryxdesign/core/Heading";
+import { Section } from "@astryxdesign/core/Section";
+import { Stack } from "@astryxdesign/core/Stack";
+import { StatusDot } from "@astryxdesign/core/StatusDot";
+import { Text } from "@astryxdesign/core/Text";
 import { useEffect, useState } from "react";
 
 type Health = { status: string; service: string };
@@ -16,13 +21,39 @@ export default function Home() {
     }).then(setHealth).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Request failed"));
   }, []);
 
-  return <main className="mx-auto min-h-screen max-w-4xl px-8 py-20">
-    <p className="text-sm uppercase tracking-[0.2em] text-emerald-800">MIA · Research lab</p>
-    <h1 className="mt-5 text-5xl font-semibold tracking-tight">Open detector evaluation</h1>
-    <p className="mt-4 max-w-xl text-lg text-neutral-600">A transparent workspace for measuring what text detectors can and cannot tell us.</p>
-    <section className="mt-12 rounded-xl border border-neutral-200 bg-white p-6" aria-live="polite">
-      <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">Backend status</h2>
-      <p className="mt-3 text-lg">{health ? `Connected · ${health.service}` : error ? `Unavailable · ${error}` : "Checking backend…"}</p>
-    </section>
-  </main>;
+  const statusLabel = health ? "Backend connected" : error ? "Backend unavailable" : "Checking backend";
+  const statusVariant = health ? "success" : error ? "error" : "warning";
+
+  return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={10}>
+    <Stack hAlign="center">
+      <Stack as="main" width="100%" maxWidth="68rem" gap={8}>
+        <Stack as="header" gap={3}>
+          <Text type="label" color="accent">MIA · RESEARCH LAB / 01</Text>
+          <Heading level={1} type="display-1" textWrap="balance">Open detector evaluation</Heading>
+          <Text as="p" type="large" color="secondary" maxLines={3}>
+            A careful, evidence-led workspace for measuring what AI-writing detectors can and cannot tell us.
+          </Text>
+        </Stack>
+
+        <section aria-live="polite">
+          <Section variant="section" padding={5}>
+            <Stack gap={3}>
+              <Text type="label" color="secondary">SYSTEM STATUS</Text>
+              <Stack direction="horizontal" gap={2} align="center" wrap="wrap">
+                <StatusDot variant={statusVariant} label={statusLabel} isPulsing={!health && !error} />
+                <Heading level={2}>{health ? "Backend connected" : error ? "Backend unavailable" : "Checking connection"}</Heading>
+              </Stack>
+              <Text as="p" color="secondary">
+                {health ? `Live health check · ${health.service}` : error ? error : "Waiting for the API health check to respond."}
+              </Text>
+            </Stack>
+          </Section>
+        </section>
+
+        <Text as="p" type="supporting" color="secondary">
+          Research infrastructure for transparency, reproducibility, and honest limitations.
+        </Text>
+      </Stack>
+    </Stack>
+  </Section>;
 }
