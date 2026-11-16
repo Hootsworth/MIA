@@ -11,7 +11,7 @@ MIA is designed to measure detector behavior, not to help people evade detection
 
 ## Current status
 
-The Foundation, Documents, Detectors, and Similarity milestones are implemented. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. The Lab registry exposes the RoBERTa baseline and similarity detector; similarity is unavailable until a local reference index is built. Experiments, statistics, Turnitin report import, and research reporting remain later milestones.
+The Foundation, Documents, Detectors, Similarity, Experiments, and Statistics milestones are implemented. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. The Lab registry exposes the RoBERTa baseline and similarity detector; similarity is unavailable until a local reference index is built. Statistics analyze persisted experiments using frozen provenance labels and structured classification rules. Turnitin report import and research reporting remain later milestones.
 
 ## Quick start
 
@@ -118,8 +118,12 @@ The registry also exposes `MIA Similarity · Winnowing`. It is operational only 
 
 Then run the health check at `/detectors`. The collector stores article introductions locally and writes a revision-linked source manifest; the corpus and index are git-ignored. Commit only `data/manifests/` metadata. Defaults are five-word shingles and a four-shingle winnowing window, giving an eight-word exact-match threshold guarantee. The CLI can also index your own UTF-8 `.txt` directory and compare a text file: `mia-detect index <directory> --database <index>` then `mia-detect check <file> --database <index>`. Returned overlap percentages are query-word coverage, not probability or a plagiarism finding. See [`docs/DATASETS.md`](docs/DATASETS.md) for licensing and attribution rules.
 
-## Experiments (Milestone 5)
+## Experiments (Milestones 5–6)
 
 Open `/experiments` to create a draft from stored documents and registered detectors. Declare the research question, hypothesis, classification rule, planned metrics, and random seed before queueing. MIA freezes the document IDs and hashes, extracted-text hashes, detector IDs and revisions, conditions, and protocol version. Queued protocols cannot be edited; duplicate an experiment to create a new draft.
 
-Runs persist one result per document-detector pair, including errors, and update progress after each pair. Cancel stops new pairs after the current in-flight pair. Failed pairs can be retried when resuming a partial run; successful pairs remain unchanged. On restart, running experiments with frozen snapshots become resumable partial runs. This milestone records a classification rule but does not apply thresholds or calculate metrics.
+Runs persist one result per document-detector pair, including errors, and update progress after each pair. Cancel stops new pairs after the current in-flight pair. Failed pairs can be retried when resuming a partial run; successful pairs remain unchanged. On restart, running experiments with frozen snapshots become resumable partial runs.
+
+Milestone 6 adds the read-only endpoint `/api/analysis/experiments/{id}` and a results view on `/experiments`. New experiments freeze an `m6.1` structured rule: positive/negative declared provenance, per-detector score direction and threshold, plus selected metrics. Estimates include n, class counts, deterministic 95% bootstrap intervals (2,000 resamples by default), subgroup counts/low-n flags, and paired detector comparisons when applicable. Binary metrics cannot run without thresholds. Calibration/ECE require detector score semantics `probability`; percentage and ordinal scores are never treated as probabilities. Missing and censored results are counted but excluded from estimates. Legacy M5 text protocols stay intact and need duplication or update before they can be analyzed.
+
+The current local database has one HUMAN document and no AI-labeled documents, which is insufficient to estimate binary performance. MIA returns estimability details rather than inventing scores. See [`docs/METHODS.md`](docs/METHODS.md) and [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md).

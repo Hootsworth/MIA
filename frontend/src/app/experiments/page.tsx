@@ -8,6 +8,7 @@ import { Section } from "@astryxdesign/core/Section";
 import { Selector } from "@astryxdesign/core/Selector";
 import { Stack } from "@astryxdesign/core/Stack";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
+import { Table } from "@astryxdesign/core/Table";
 import { Text } from "@astryxdesign/core/Text";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -15,15 +16,18 @@ import { useCallback, useEffect, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 type DocumentRow = { id: string; filename: string; word_count: number; metadata: { provenance: string } };
-type DetectorRow = { key: string; name: string; status: string };
+type DetectorRow = { key: string; name: string; status: string; score_semantics?: string };
 type ResultRow = { id: string; document_id: string; filename: string | null; output: { score?: number | null; label?: string | null; error?: { message?: string } | null; score_semantics?: string; device?: string } ; error?: { message?: string } | null };
 type ExperimentRow = {
   id: string; name: string; status: string; research_question: string; hypothesis: string;
-  protocol: { classification_rule: string; seed: number; protocol_version: string; document_snapshot: { id: string; filename: string; sha256: string }[]; detector_snapshot: { key: string; revision: string }[]; conditions: Record<string, unknown> };
+  protocol: { classification_rule: string | Record<string, unknown>; seed: number; protocol_version: string; document_snapshot: { id: string; filename: string; sha256: string }[]; detector_snapshot: { key: string; revision: string }[]; conditions: Record<string, unknown> };
   progress: { completed: number; total: number; failures: number };
   interruption_reason: string | null; results: ResultRow[];
 };
 type Option = { value: string; label: string };
+type AnalysisMetricRow = Record<string, unknown> & { id: string; detector: string; metric: string; estimate: string; interval: string; n: number };
+const metricOptions: Option[] = ["accuracy", "precision", "recall", "specificity", "f1", "fpr", "fnr", "auroc", "auprc", "cohen_kappa", "confusion_matrix", "calibration", "ece"].map((value) => ({ value, label: value }));
+const provenanceOptions: Option[] = ["HUMAN", "AI_GENERATED", "AI_ASSISTED"].map((value) => ({ value, label: value.replaceAll("_", " ") }));
 
 export default function ExperimentsPage() {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
@@ -34,8 +38,12 @@ export default function ExperimentsPage() {
   const [hypothesis, setHypothesis] = useState("");
   const [documentIds, setDocumentIds] = useState<string[]>([]);
   const [detectorKeys, setDetectorKeys] = useState<string[]>([]);
-  const [classificationRule, setClassificationRule] = useState("");
-  const [metrics, setMetrics] = useState("");
+  const [positiveProvenance, setPositiveProvenance] = useState<string[]>(["AI_GENERATED"]);
+  const [negativeProvenance, setNegativeProvenance] = useState<string[]>(["HUMAN"]);
+  const [direction, setDirection] = useState("higher");
+  const [thresholds, setThresholds] = useState<Record<string, string>>({});
+  const [metrics, setMetrics] = useState<string[]>(["auroc"]);
+  const [analyses, setAnalyses] = useState<Record<string, { detectors?: { detector: string; n: number; metrics: Record<string, unknown>; confidence_intervals?: Record<string, { lower: number; upper: number }>; reason?: string }[]; note?: string }>>({});
   const [transformationsJson, setTransformationsJson] = useState("[]");
   const [seed, setSeed] = useState("0");
   const [notice, setNotice] = useState("");
@@ -66,17 +74,32 @@ export default function ExperimentsPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name, research_question: researchQuestion, hypothesis, document_ids: documentIds,
-          detector_keys: detectorKeys, classification_rule: classificationRule,
-          metrics: metrics.split(",").map((value) => value.trim()).filter(Boolean),
-          conditions: { transformations }, seed: Number(seed), protocol_version: "m5.1",
+          detector_keys: detectorKeys, classification_rule: {
+            version: "m6.1", positive_provenance: positiveProvenance, negative_provenance: negativeProvenance,
+            detectors: Object.fromEntries(detectorKeys.map((key) => [key, { direction, threshold: Number(thresholds[key]) }])),
+          },
+          metrics,
+          conditions: { transformations }, seed: Number(seed), protocol_version: "m6.1",
         }),
       });
       const body = await response.json() as { detail?: string | { message?: string }; id?: string };
       if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : body.detail?.message ?? JSON.stringify(body.detail));
       setNotice("Draft saved with a frozen dataset and detector snapshot. Review the rule, then queue the run below.");
-      setName(""); setHypothesis(""); setClassificationRule(""); setMetrics(""); setTransformationsJson("[]"); setDocumentIds([]); setDetectorKeys([]);
+      setName(""); setHypothesis(""); setMetrics(["auroc"]); setTransformationsJson("[]"); setDocumentIds([]); setDetectorKeys([]);
       await refresh();
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create experiment."); }
+    finally { setBusy(false); }
+  }
+
+  async function analyze(id: string) {
+    setBusy(true); setNotice("");
+    try {
+      const response = await fetch(`${API}/api/analysis/experiments/${id}`);
+      const body = await response.json() as { detail?: string | { message?: string }; detectors?: { detector: string; n: number; metrics: Record<string, unknown>; confidence_intervals?: Record<string, { lower: number; upper: number }>; reason?: string }[]; note?: string };
+      if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : body.detail?.message ?? JSON.stringify(body.detail));
+      setAnalyses((current) => ({ ...current, [id]: body }));
+      setNotice("Analysis loaded from persisted experiment results.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not analyze this experiment."); }
     finally { setBusy(false); }
   }
 
@@ -94,9 +117,10 @@ export default function ExperimentsPage() {
 
   const docOptions: Option[] = documents.map((doc) => ({ value: doc.id, label: `${doc.filename} · ${doc.metadata.provenance} · ${doc.word_count} words` }));
   const detectorOptions: Option[] = detectors.map((detector) => ({ value: detector.key, label: `${detector.name} · ${detector.status.replaceAll("_", " ")}` }));
+  const detectorSemantics = Object.fromEntries(detectors.map((detector) => [detector.key, detector.score_semantics ?? "unknown"]));
 
   return <Section width="100%" minHeight="100vh" paddingInline={6} paddingBlock={8}><Stack hAlign="center"><Stack as="main" width="100%" maxWidth="76rem" gap={6}>
-    <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / EXPERIMENTS</Text><Heading level={1} type="display-1">Experiments</Heading><Text as="p" color="secondary">Freeze the research protocol before running detector-document pairs. Scores are stored as observed outputs; this milestone does not compute statistics.</Text></Stack>
+    <Stack as="header" gap={2}><Text type="label" color="accent">MIA · RESEARCH LAB / EXPERIMENTS</Text><Heading level={1} type="display-1">Experiments</Heading><Text as="p" color="secondary">Freeze provenance labels, score direction, and threshold before running. Analysis uses the stored results and reports sample sizes and uncertainty.</Text></Stack>
     {notice && <Text as="p" aria-live="polite" color="secondary">{notice}</Text>}
     <Section variant="section" padding={5}><Stack gap={4}>
       <Heading level={2}>Create a draft</Heading>
@@ -105,11 +129,14 @@ export default function ExperimentsPage() {
       <TextArea label="Hypothesis" value={hypothesis} onChange={setHypothesis} isRequired placeholder="State the hypothesis before reviewing detector results." />
       <MultiSelector label="Documents" value={documentIds} onChange={setDocumentIds} options={docOptions} placeholder="Select documents" hasSearch emptyText="No stored documents are available." />
       <MultiSelector label="Detectors" value={detectorKeys} onChange={setDetectorKeys} options={detectorOptions} placeholder="Select detectors" emptyText="No detectors are registered." />
-      <TextInput label="Predeclared classification rule" value={classificationRule} onChange={setClassificationRule} isRequired description="Required before queueing. Record the intended interpretation explicitly; binary metrics are not computed in this milestone." placeholder="Describe the rule and any threshold before the run" />
-      <TextInput label="Metrics to evaluate later" value={metrics} onChange={setMetrics} isOptional description="Comma-separated plan only; no metrics are calculated here." placeholder="e.g. AUROC, FPR" />
+      <MultiSelector label="Positive class provenance" value={positiveProvenance} onChange={setPositiveProvenance} options={provenanceOptions} placeholder="Select positive labels" />
+      <MultiSelector label="Negative class provenance" value={negativeProvenance} onChange={setNegativeProvenance} options={provenanceOptions} placeholder="Select negative labels" />
+      <Selector label="Positive score direction" value={direction} onChange={setDirection} options={[{ value: "higher", label: "Higher score means positive" }, { value: "lower", label: "Lower score means positive" }]} />
+      {detectorKeys.map((key) => <TextInput key={key} label={`Threshold · ${key} (${detectorSemantics[key]})`} value={thresholds[key] ?? ""} onChange={(value) => setThresholds((current) => ({ ...current, [key]: value }))} inputMode="decimal" isRequired description="Use the detector's native score scale. Do not tune on the evaluation set." />)}
+      <MultiSelector label="Metrics to calculate" value={metrics} onChange={setMetrics} options={metricOptions} placeholder="Select metrics" />
       <TextInput label="Random seed" value={seed} onChange={setSeed} inputMode="numeric" />
       <TextArea label="Transformations to record (JSON array)" value={transformationsJson} onChange={setTransformationsJson} description="Recorded in the frozen protocol; transformations are not applied in this milestone." />
-      <Button label={busy ? "Saving…" : "Create draft"} variant="primary" isDisabled={busy || !name.trim() || !hypothesis.trim() || !classificationRule.trim() || documentIds.length === 0 || detectorKeys.length === 0 || !Number.isInteger(Number(seed))} onClick={() => void createExperiment()} />
+      <Button label={busy ? "Saving…" : "Create draft"} variant="primary" isDisabled={busy || !name.trim() || !hypothesis.trim() || positiveProvenance.length === 0 || negativeProvenance.length === 0 || positiveProvenance.some((value) => negativeProvenance.includes(value)) || metrics.length === 0 || detectorKeys.some((key) => thresholds[key] === undefined || !Number.isFinite(Number(thresholds[key]))) || documentIds.length === 0 || detectorKeys.length === 0 || !Number.isInteger(Number(seed))} onClick={() => void createExperiment()} />
     </Stack></Section>
     <Stack gap={4}><Heading level={2}>Saved experiments</Heading>
       {experiments.length === 0 ? <Text as="p" color="secondary">No experiments yet. Create a draft with a classification rule to begin.</Text> : experiments.map((experiment) => {
@@ -119,15 +146,21 @@ export default function ExperimentsPage() {
           <Stack direction="horizontal" align="center" gap={3} wrap="wrap"><StatusDot variant={variant} label={experiment.status.replaceAll("_", " ")} /><Heading level={3}>{experiment.name}</Heading></Stack>
           <Text as="p">{experiment.research_question} · {experiment.progress.completed}/{experiment.progress.total} pairs · {experiment.progress.failures} failures</Text>
           {experiment.progress.total > 0 && <ProgressBar label={`Progress for ${experiment.name}`} value={value} max={experiment.progress.total} hasValueLabel />}
-          <Text as="p" type="supporting">Classification rule · {experiment.protocol.classification_rule} · seed {experiment.protocol.seed} · protocol {experiment.protocol.protocol_version}</Text>
+          <Text as="p" type="supporting">Frozen protocol · seed {experiment.protocol.seed} · protocol {experiment.protocol.protocol_version}</Text>
           {experiment.interruption_reason && <Text as="p" color="accent">{experiment.interruption_reason}</Text>}
           <Stack direction="horizontal" gap={2} wrap="wrap">
             {experiment.status === "DRAFT" && <Button label="Run experiment" variant="primary" isDisabled={busy} onClick={() => void action(experiment.id, "run")} />}
             {(experiment.status === "QUEUED" || experiment.status === "RUNNING") && <Button label="Cancel" variant="secondary" isDisabled={busy} onClick={() => void action(experiment.id, "cancel")} />}
             {experiment.status === "PARTIALLY_COMPLETED" && <Button label="Resume missing pairs" variant="primary" isDisabled={busy} onClick={() => void action(experiment.id, "resume")} />}
+            {(experiment.status === "COMPLETED" || experiment.status === "PARTIALLY_COMPLETED") && <Button label="Analyze results" variant="secondary" isDisabled={busy} onClick={() => void analyze(experiment.id)} />}
             <Button label="Duplicate as draft" variant="secondary" isDisabled={busy} onClick={() => void action(experiment.id, "duplicate")} />
           </Stack>
           {experiment.results.length > 0 && <Stack gap={2}><Heading level={4}>Per-item results</Heading>{experiment.results.map((result) => <Text key={result.id} as="p" type="supporting">{result.filename ?? result.document_id} · {result.error ? `failed: ${result.error.message ?? "unknown error"}` : `score ${result.output.score ?? "unavailable"} (${result.output.score_semantics ?? "unknown"})${result.output.label ? ` · ${result.output.label}` : ""}`}</Text>)}</Stack>}
+          {analyses[experiment.id] && <Stack gap={2}><Heading level={4}>Statistics</Heading><Table<AnalysisMetricRow> idKey="id" density="compact" dividers="rows" data={(analyses[experiment.id].detectors ?? []).flatMap((row) => {
+            const entries = Object.entries(row.metrics);
+            if (entries.length === 0) return [{ id: `${row.detector}-none`, detector: row.detector, metric: "Not estimable", estimate: row.reason ?? "No metric could be estimated", interval: "—", n: row.n }];
+            return entries.map(([metric, value]) => { const interval = row.confidence_intervals?.[metric]; return { id: `${row.detector}-${metric}`, detector: row.detector, metric, estimate: JSON.stringify(value), interval: interval ? `${interval.lower.toFixed(4)} to ${interval.upper.toFixed(4)}` : "—", n: row.n }; });
+          })} columns={[{ key: "detector", header: "Detector" }, { key: "metric", header: "Metric" }, { key: "estimate", header: "Estimate" }, { key: "interval", header: "95% CI" }, { key: "n", header: "n" }]} /><Text as="p" type="supporting">{analyses[experiment.id].note}</Text></Stack>}
         </Stack></Section>;
       })}
     </Stack>

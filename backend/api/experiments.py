@@ -51,6 +51,10 @@ def _snapshot(payload: ExperimentCreate, db: Session) -> dict:
             "language": declared.get("language"),
             "domain": declared.get("domain"),
             "genre": declared.get("genre"),
+            "author_language_background": declared.get("author_language_background"),
+            "word_count": metadata.get("word_count"),
+            "source_group": declared.get("source_group") or declared.get("source"),
+            "duplicate_group": declared.get("duplicate_group"),
         })
     detector_snapshot = []
     for key in payload.detector_keys:
@@ -191,7 +195,8 @@ async def queue_experiment(experiment_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Experiment not found")
     if experiment.status != "DRAFT":
         raise HTTPException(409, "Only a draft experiment can be queued")
-    if not (experiment.protocol or {}).get("classification_rule", "").strip():
+    classification_rule = (experiment.protocol or {}).get("classification_rule")
+    if not classification_rule or (isinstance(classification_rule, str) and not classification_rule.strip()):
         raise HTTPException(422, "A classification rule is required before running")
     experiment.status = "QUEUED"
     experiment.cancel_requested = False

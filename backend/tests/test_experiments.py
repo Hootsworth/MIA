@@ -15,7 +15,7 @@ from backend.core.database import Base
 from backend.detectors import registry
 from backend.detectors.similarity import SimilarityDetector
 from backend.main import app
-from backend.models import Document, Experiment
+from backend.models import Document, Experiment, Result
 from backend.services import experiment_runner
 
 
@@ -90,6 +90,33 @@ def test_classification_rule_is_required(experiment_client):
     body = payload(["document-id"])
     del body["classification_rule"]
     assert client.post("/api/experiments", json=body).status_code == 422
+
+
+def test_analysis_requires_structured_rule_and_is_honest_about_one_class(experiment_client):
+    client, sessions, _ = experiment_client
+    document_id = upload(client, "one-class.txt", REFERENCE)
+    with sessions() as db:
+        legacy = Experiment(name="legacy", status="COMPLETED", protocol={"classification_rule": "free text", "metrics": ["auroc"]})
+        db.add(legacy); db.commit(); db.refresh(legacy)
+        legacy_id = legacy.id
+        current = Experiment(name="one class", status="COMPLETED", protocol={
+            "protocol_version": "m6.1", "seed": 3, "metrics": ["auroc"],
+            "classification_rule": {"version": "m6.1", "positive_provenance": ["AI_GENERATED"],
+                "negative_provenance": ["HUMAN"], "detectors": {"fixture": {"direction": "higher", "threshold": 50}}},
+            "document_snapshot": [{"id": document_id, "provenance": "HUMAN", "source_group": "fixture"}],
+            "detector_snapshot": [{"key": "fixture", "version_id": None, "score_semantics": "percentage"}],
+        })
+        db.add(current); db.commit(); db.refresh(current)
+        current_id = current.id
+        db.add(Result(experiment_id=current_id, document_id=document_id, detector_version_id=None,
+                      output={"score": 20.0, "score_semantics": "percentage"}))
+        db.commit()
+    assert client.get(f"/api/analysis/experiments/{legacy_id}").status_code == 422
+    response = client.get(f"/api/analysis/experiments/{current_id}")
+    assert response.status_code == 200, response.text
+    item = response.json()["detectors"][0]
+    assert item["n"] == 1 and item["metrics"]["auroc"] is None
+    assert item["insufficient_classes"] is True
 
 
 def test_snapshot_is_frozen_and_duplicate_creates_draft(experiment_client):
