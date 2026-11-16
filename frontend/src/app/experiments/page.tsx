@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 type DocumentRow = { id: string; filename: string; word_count: number; metadata: { provenance: string } };
 type DetectorRow = { key: string; name: string; status: string; score_semantics?: string };
-type ResultRow = { id: string; document_id: string; filename: string | null; output: { score?: number | null; label?: string | null; error?: { message?: string } | null; score_semantics?: string; device?: string } ; error?: { message?: string } | null };
+type ResultRow = { id: string; document_id: string; filename: string | null; detector_name?: string; output: { score?: number | null; label?: string | null; error?: { message?: string } | null; score_semantics?: string; device?: string; turnitin?: { ai_writing?: { raw?: string; state?: string }; similarity?: { raw?: string | null; state?: string } } } ; error?: { message?: string } | null };
 type ExperimentRow = {
   id: string; name: string; status: string; research_question: string; hypothesis: string;
   protocol: { classification_rule: string | Record<string, unknown>; seed: number; protocol_version: string; document_snapshot: { id: string; filename: string; sha256: string }[]; detector_snapshot: { key: string; revision: string }[]; conditions: Record<string, unknown> };
@@ -163,7 +163,7 @@ export default function ExperimentsPage() {
             {(experiment.status === "COMPLETED" || experiment.status === "PARTIALLY_COMPLETED") && <Button label="Analyze results" variant="secondary" isDisabled={busy} onClick={() => void analyze(experiment.id)} />}
             <Button label="Duplicate as draft" variant="secondary" isDisabled={busy} onClick={() => void action(experiment.id, "duplicate")} />
           </Stack>
-          {experiment.results.length > 0 && <Stack gap={2}><Heading level={4}>Per-item results</Heading>{experiment.results.map((result) => <Text key={result.id} as="p" type="supporting">{result.filename ?? result.document_id} · {result.error ? `failed: ${result.error.message ?? "unknown error"}` : `score ${result.output.score ?? "unavailable"} (${result.output.score_semantics ?? "unknown"})${result.output.label ? ` · ${result.output.label}` : ""}`}</Text>)}</Stack>}
+          {experiment.results.length > 0 && <Stack gap={2}><Heading level={4}>Per-item results</Heading>{experiment.results.map((result) => <Text key={result.id} as="p" type="supporting">{result.filename ?? result.document_id} · {result.detector_name ? `${result.detector_name} · ` : ""}{result.output.turnitin ? `AI writing ${result.output.turnitin.ai_writing?.raw} · ${result.output.turnitin.ai_writing?.state?.replaceAll("_", " ")} · similarity ${result.output.turnitin.similarity?.raw ?? "not displayed"} · percentage semantics` : result.error ? `failed: ${result.error.message ?? "unknown error"}` : `score ${result.output.score ?? "unavailable"} (${result.output.score_semantics ?? "unknown"})${result.output.label ? ` · ${result.output.label}` : ""}`}</Text>)}</Stack>}
           {analyses[experiment.id] && <Stack gap={3}><Heading level={4}>Statistics</Heading><Table<AnalysisMetricRow> idKey="id" density="compact" dividers="rows" data={(analyses[experiment.id].detectors ?? []).flatMap((row) => {
             const entries = Object.entries(row.metrics);
             if (entries.length === 0) return [{ id: `${row.detector}-none`, detector: row.detector, metric: "Not estimable", estimate: row.reason ?? "No metric could be estimated", interval: "—", n: row.n }];

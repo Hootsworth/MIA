@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from backend.api.detectors import _records, get_db
 from backend.core.database import ROOT
 from backend.detectors import registry
-from backend.models import AuditEvent, Detector, Document, Experiment, ExperimentDocument, Result
+from backend.models import AuditEvent, Detector, Document, Experiment, ExperimentDocument, Result, TurnitinReport
 from backend.schemas.experiments import ExperimentCreate
 from backend.services.experiment_runner import schedule_experiment
 
@@ -119,8 +119,23 @@ def _view(experiment: Experiment, results: list[Result] | None = None, docs: dic
 
 def _details(db: Session, experiment: Experiment):
     results = db.scalars(select(Result).where(Result.experiment_id == experiment.id).order_by(Result.created_at, Result.id)).all()
-    docs = {doc.id: doc.filename for doc in db.scalars(select(Document).where(Document.id.in_([r.document_id for r in results]))).all()} if results else {}
-    return _view(experiment, results, docs)
+    protocol = experiment.protocol or {}
+    snapshot_ids = [item["id"] for item in protocol.get("document_snapshot", [])]
+    ids = set(snapshot_ids) | {result.document_id for result in results}
+    docs = {doc.id: doc.filename for doc in db.scalars(select(Document).where(Document.id.in_(ids))).all()} if ids else {}
+    view = _view(experiment, results, docs)
+    if snapshot_ids:
+        reports = db.scalars(select(TurnitinReport).where(TurnitinReport.document_id.in_(snapshot_ids)).order_by(TurnitinReport.created_at)).all()
+        for report in reports:
+            data = report.report_data or {}
+            ai = data.get("ai_writing", {})
+            view["results"].append({
+                "id": report.id, "document_id": report.document_id, "filename": docs.get(report.document_id),
+                "detector_name": "Turnitin report (manual import)", "detector_version_id": data.get("detector_version"),
+                "output": {"score": ai.get("value"), "score_semantics": "percentage", "turnitin": data},
+                "error": None, "created_at": report.created_at.isoformat(),
+            })
+    return view
 
 
 @router.post("/experiments", status_code=201)

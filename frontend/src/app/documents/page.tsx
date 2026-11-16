@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@astryxdesign/core/Button";
+import { Table } from "@astryxdesign/core/Table";
 import { FileInput } from "@astryxdesign/core/FileInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -13,6 +14,8 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type Metadata = { provenance: string; language: string; author_language_background: string; domain?: string; genre?: string; source?: string; license?: string; consent?: string; generator_model?: string; generator_version?: string; prompt_reference?: string; editing_history?: string };
 type Doc = { id: string; filename: string; sha256: string; metadata: Metadata; word_count: number; quality_flags: {code:string;message:string;encoding?:string}[]; duplicate_flags: {document_id:string;filename:string;jaccard:number}[]; pages?: {page:number|null;text:string}[] };
+type ImportedReport = { id: string; submission_reference: string; report_timestamp: string; ai_writing: { raw: string; state: string; value: number | null }; similarity: { raw: string | null; state: string; value: number | null }; eligible_word_count: number; report_file_sha256: string };
+type ImportedReportRow = Record<string, unknown> & { id: string; submission: string; timestamp: string; similarity: string; aiWriting: string; eligibleWords: number; reportHash: string };
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const blank: Metadata = { provenance: "HUMAN", language: "en", author_language_background: "UNKNOWN" };
 
@@ -28,6 +31,7 @@ export default function DocumentsPage() {
   const [manifestFile, setManifestFile] = useState<File | null>(null);
   const [duplicateTarget, setDuplicateTarget] = useState<{id:string;filename:string} | null>(null);
   const [audit, setAudit] = useState<{event_type:string;created_at:string}[]>([]);
+  const [turnitinReports, setTurnitinReports] = useState<ImportedReport[]>([]);
   const refresh = useCallback(async () => {
     const response = await fetch(`${API}/api/documents`);
     if (!response.ok) throw new Error(`Unable to load documents (HTTP ${response.status})`);
@@ -43,6 +47,8 @@ export default function DocumentsPage() {
     if (!response.ok) { setNotice(body.detail ?? "Unable to load document"); return; }
     setSelected(body as Doc);
     setEditMetadata((body as Doc).metadata);
+    const reportResponse = await fetch(`${API}/api/turnitin-reports?document_id=${encodeURIComponent(id)}`);
+    if (reportResponse.ok) setTurnitinReports(await reportResponse.json() as ImportedReport[]);
     const auditResponse = await fetch(`${API}/api/documents/${id}/audit`);
     if (auditResponse.ok) setAudit(await auditResponse.json() as {event_type:string;created_at:string}[]);
   };
@@ -101,6 +107,13 @@ export default function DocumentsPage() {
     {selected && <Section variant="section" padding={5}><Stack gap={4}><Heading level={2}>{selected.filename}</Heading><Text as="p" type="supporting">SHA-256 · {selected.sha256}</Text>
       {selected.quality_flags.map((flag) => <Text key={flag.code} as="p" color="accent">Warning: {flag.message}</Text>)}
       {selected.duplicate_flags.map((flag) => <Text key={flag.document_id} as="p" color="accent">Near duplicate of {flag.filename} · Jaccard {flag.jaccard}</Text>)}
+      <Heading level={3}>Manually imported Turnitin results</Heading>
+      {turnitinReports.length === 0 ? <Text as="p" color="secondary">No Turnitin reports are attached to this document.</Text> : <Table<ImportedReportRow> idKey="id" density="compact" dividers="rows" data={turnitinReports.map((report) => ({
+        id: report.id, submission: report.submission_reference, timestamp: report.report_timestamp,
+        similarity: report.similarity.state === "value" ? `${report.similarity.raw} (${report.similarity.value}%)` : `${report.similarity.raw ?? ""} · ${report.similarity.state.replaceAll("_", " ")}`,
+        aiWriting: report.ai_writing.state === "value" ? `${report.ai_writing.raw} (${report.ai_writing.value}%)` : `${report.ai_writing.raw} · ${report.ai_writing.state.replaceAll("_", " ")}`,
+        eligibleWords: report.eligible_word_count, reportHash: report.report_file_sha256,
+      }))} columns={[{ key: "submission", header: "Submission" }, { key: "timestamp", header: "Report timestamp" }, { key: "similarity", header: "Similarity · percentage" }, { key: "aiWriting", header: "AI writing · percentage" }, { key: "eligibleWords", header: "Eligible words" }, { key: "reportHash", header: "Original report SHA-256" }]} />}
       <Heading level={3}>Edit declared metadata</Heading>
       <form onSubmit={saveMetadata}><Stack gap={3}>
         <Selector label="Provenance" htmlName="provenance" value={editMetadata.provenance} onChange={(value) => setEditField("provenance", value)} options={["HUMAN", "AI_GENERATED", "AI_ASSISTED"]} />

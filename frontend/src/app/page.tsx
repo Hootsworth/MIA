@@ -58,6 +58,7 @@ export default function Home() {
           <Link href="/documents" isStandalone>Open document library</Link>
           <Link href="/detectors" isStandalone>Inspect detector registry</Link>
           <Link href="/experiments" isStandalone>Plan an experiment</Link>
+          <Link href="/turnitin-reports" isStandalone>Import an authorised Turnitin report</Link>
         </Stack>
       </Stack>
     </Stack>

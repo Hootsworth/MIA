@@ -44,3 +44,10 @@
 - Bootstrap intervals are percentile intervals over observed documents, or paired documents in detector comparisons. This release does not provide cluster-resampling intervals through the analysis endpoint, multiplicity adjustments, or threshold tuning. The grouped leakage helper is available for study splits, but the current analysis endpoint does not create splits.
 - Subgroup summaries report sample counts and low-n flags but do not claim inferential subgroup differences. Calibration is available only for scores explicitly marked as probabilities; the current RoBERTa probability is not necessarily calibrated.
 - Censored and missing score states are counted separately and excluded. No censoring-aware estimator is implemented.
+
+## Milestone 7 Turnitin reports
+
+- The importer is implemented for manually supplied, institution-authorised report files only. Institutional approval has not been documented in this repository, so no research documents have been submitted and no real Turnitin reports have been imported or verified.
+- MIA does not verify report contents with Turnitin, parse passages from the PDF/image, or provide API access. Researchers transcribe displayed values and passage annotations, then confirm the document association.
+- Eligible word-count tolerance is researcher supplied and stored. An overly permissive tolerance weakens the association safeguard.
+- Censored scores remain typed observations with raw display strings and optional upper bounds. MIA does not yet implement censoring-aware statistical estimators.

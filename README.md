@@ -11,7 +11,7 @@ MIA is designed to measure detector behavior, not to help people evade detection
 
 ## Current status
 
-The Foundation, Documents, Detectors, Similarity, Experiments, and Statistics milestones are implemented. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. The Lab registry exposes the RoBERTa baseline and similarity detector; similarity is unavailable until a local reference index is built. Statistics analyze persisted experiments using frozen provenance labels and structured classification rules. Turnitin report import and research reporting remain later milestones.
+The Foundation, Documents, Detectors, Similarity, Experiments, Statistics, and manual Turnitin report import milestones are implemented. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. The Lab registry exposes the RoBERTa baseline and similarity detector; similarity is unavailable until a local reference index is built. Statistics analyze persisted experiments using frozen provenance labels and structured classification rules. Turnitin imports are manual, require explicit document confirmation and matching hashes, preserve censored values, and must only be used after institutional approval. Research reporting remains a later milestone.
 
 ## Quick start
 
