@@ -148,3 +148,50 @@ def render_raw_csv(experiment, document_rows, detector_versions):
                          result.get("raw_display"), result.get("label"),
                          json.dumps(result.get("raw_output"), sort_keys=True, ensure_ascii=False), row.get("created_at"), row.get("error")])
     return output.getvalue()
+
+
+def render_document_report(document, result, commit_sha):
+    metadata = document.metadata_json or {}
+    declared = metadata.get("declared", {})
+    detection = metadata.get("language_detection", {})
+    output = result.output or {}
+    score = output.get("score")
+    lines = [
+        f"# MIA analysis: {document.filename}", "",
+        "## Document", "",
+        f"- Filename: {document.filename}", f"- SHA-256: {document.sha256}",
+        f"- Extracted word count: {metadata.get('word_count', 0)}",
+        f"- Language: {detection.get('name', declared.get('language', 'unknown'))} ({detection.get('status', 'unknown')})",
+        f"- Language detector confidence: {_display(detection.get('confidence'))}",
+        f"- Provenance: {declared.get('provenance', 'UNKNOWN')} (declared metadata; not inferred)", "",
+        *( [f"Uploader context: {declared.get('context')}", ""] if declared.get("context") else [] ),
+        "## Detector output", "",
+        f"- Detector: {output.get('model_id', 'RoBERTa OpenAI Detector')}",
+        f"- Revision: {output.get('revision', 'unknown')}",
+        f"- Label: {_display(output.get('label'))}",
+        f"- Raw score: {_display(score)}", f"- Score semantics: {output.get('score_semantics', 'unknown')}",
+        f"- Device: {_display(output.get('device'))}", f"- Duration (ms): {_display(output.get('duration_ms'))}",
+        f"- Raw output: {_display(output.get('raw_output', {}))}", "",
+        "## Limitations", "",
+        "This is a single detector result, not a calibrated probability or proof of authorship. The model was trained to distinguish GPT-2 outputs from WebText and may perform differently on modern generators, domains, or language varieties. Do not use this output as the sole basis for a consequential decision.",
+        "",
+        "## Reproducibility", "",
+        f"- Document ID: {document.id}", f"- Result ID: {result.id}",
+        f"- Experiment ID: {result.experiment_id}", f"- Git commit: {commit_sha}",
+        f"- Generated at (UTC): {datetime.now(timezone.utc).isoformat()}",
+        "- This report was generated from the persisted MIA result; it does not add or infer evidence.", "",
+    ]
+    return "\n".join(lines)
+
+
+def render_document_csv(document, result):
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    row = result.output or {}
+    writer.writerow(["document_id", "filename", "sha256", "word_count", "language", "provenance", "detector", "revision", "label", "raw_score", "score_semantics", "device", "duration_ms", "result_id", "experiment_id"])
+    writer.writerow([document.id, document.filename, document.sha256, (document.metadata_json or {}).get("word_count"),
+                     ((document.metadata_json or {}).get("language_detection") or {}).get("name"),
+                     ((document.metadata_json or {}).get("declared") or {}).get("provenance", "UNKNOWN"),
+                     row.get("model_id"), row.get("revision"), row.get("label"), row.get("score"),
+                     row.get("score_semantics"), row.get("device"), row.get("duration_ms"), result.id, result.experiment_id])
+    return output.getvalue()

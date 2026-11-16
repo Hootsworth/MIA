@@ -1,0 +1,159 @@
+{
+  "name": "mia-editorial",
+  "like": "neutral",
+  "mode": "both",
+  "settings": [
+    {
+      "thing": "corners",
+      "value": "pill",
+      "source": "dial"
+    },
+    {
+      "thing": "font",
+      "value": "mono",
+      "source": "dial",
+      "on": "code"
+    },
+    {
+      "thing": "--color-background-body",
+      "value": "#ffffff",
+      "source": "token"
+    },
+    {
+      "thing": "--radius-page",
+      "value": "0px",
+      "source": "token"
+    },
+    {
+      "thing": "--radius-inner",
+      "value": "6px",
+      "source": "token"
+    },
+    {
+      "thing": "--text-display-1-size",
+      "value": "36px",
+      "source": "token"
+    },
+    {
+      "thing": "--text-display-2-size",
+      "value": "30px",
+      "source": "token"
+    },
+    {
+      "thing": "--text-display-3-size",
+      "value": "24px",
+      "source": "token"
+    },
+    {
+      "thing": "neutral",
+      "value": "#8a877f",
+      "source": "dial"
+    },
+    {
+      "thing": "accent",
+      "value": "#c2410c",
+      "source": "dial"
+    },
+    {
+      "thing": "font",
+      "value": "inter",
+      "source": "dial"
+    },
+    {
+      "thing": "font",
+      "value": "Fraunces",
+      "source": "dial",
+      "on": "heading"
+    },
+    {
+      "thing": "--color-background-body",
+      "value": "#f7f5f1",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-background-body",
+      "value": "#121210",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-background-surface",
+      "value": "#fffefb",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-background-surface",
+      "value": "#181816",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-background-card",
+      "value": "#fffefb",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-background-card",
+      "value": "#181816",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-text-primary",
+      "value": "#1b1b19",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-text-primary",
+      "value": "#ecebe6",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-text-secondary",
+      "value": "#8a877f",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-text-secondary",
+      "value": "#85827a",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-border",
+      "value": "#e2dfd8",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-border",
+      "value": "#2a2926",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--radius-element",
+      "value": "14px",
+      "source": "token"
+    },
+    {
+      "thing": "--radius-container",
+      "value": "14px",
+      "source": "token"
+    },
+    {
+      "thing": "border-radius",
+      "value": "9999px",
+      "source": "property",
+      "on": "button"
+    }
+  ],
+  "lifted": [],
+  "palette": "c3bc19bf6a3365824e3f443a43cf6f9bef991bbcfb51dad55724d25ed947e1bf"
+}

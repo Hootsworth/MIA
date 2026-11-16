@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -17,6 +18,7 @@ from backend.core.database import SessionLocal
 from backend.models import AuditEvent, Document
 from backend.schemas.documents import DocumentMetadata
 from backend.services.document_ingestion import MAX_BYTES, check_type, extract, safe_filename, shingle_set
+from backend.services.language_detection import detect_language
 
 router = APIRouter(tags=["documents"])
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,6 +38,7 @@ def view(doc: Document):
     return {"id": doc.id, "filename": doc.filename, "sha256": doc.sha256,
             "created_at": doc.created_at.isoformat(), "updated_at": doc.updated_at.isoformat(),
             "metadata": meta.get("declared", {}), "word_count": meta.get("word_count", 0),
+            "language_detection": meta.get("language_detection", {"status": "not_recorded"}),
             "quality_flags": meta.get("quality_flags", []), "duplicate_flags": meta.get("duplicate_flags", []),
             "deleted": bool(meta.get("deleted", False))}
 
@@ -60,6 +63,12 @@ async def upload_document(file: UploadFile = File(...), metadata: str = Form(...
     if existing:
         raise HTTPException(409, {"message": "Exact duplicate document", "existing_document_id": existing.id, "existing_filename": existing.filename})
     pages, text, word_count, flags = extract(ext, data)
+    if declared.language.strip().lower() in {"", "auto", "und", "unknown"}:
+        language_detection = detect_language(text)
+        declared = declared.model_copy(update={"language": language_detection["language"]})
+    else:
+        language_detection = {"language": declared.language, "name": declared.language,
+                              "confidence": None, "status": "provided", "method": "user-declared"}
     shingles = shingle_set(text)
     near = []
     for candidate in db.scalars(select(Document)):
@@ -81,8 +90,12 @@ async def upload_document(file: UploadFile = File(...), metadata: str = Form(...
         original_path.write_bytes(data)
         extracted_path.write_text(json.dumps({"pages": pages, "raw_text": text}, ensure_ascii=False), encoding="utf-8")
         stored = {"declared": declared.model_dump(mode="json"), "word_count": word_count, "quality_flags": flags,
+                  "language_detection": language_detection,
                   "duplicate_flags": near, "original_path": str(original_path.relative_to(ROOT)),
                   "extracted_path": str(extracted_path.relative_to(ROOT))}
+        if declared.consent:
+            stored["consent_record"] = {"statement": declared.consent,
+                                        "recorded_at": datetime.now(timezone.utc).isoformat()}
         doc = Document(id=doc_id, filename=filename, sha256=digest, metadata_json=stored)
         db.add(doc)
         audit(db, "DOCUMENT_CREATED", doc_id, {"sha256": digest, "filename": filename})

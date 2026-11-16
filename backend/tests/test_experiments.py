@@ -297,3 +297,39 @@ def test_generated_report_contains_analysis_and_downloadable_raw_csv(experiment_
     repeated = client.post(f"/api/experiments/{experiment_id}/reports")
     assert repeated.status_code == 201, repeated.text
     assert repeated.json()["analysis"] == report["analysis"]
+
+
+def test_single_document_result_generates_report_from_saved_output(experiment_client, tmp_path, monkeypatch):
+    client, sessions, _ = experiment_client
+    monkeypatch.setattr(reports_api, "ROOT", tmp_path)
+    monkeypatch.setattr(reports_api, "GENERATED_STORAGE", tmp_path / "storage" / "reports" / "generated")
+    with sessions() as db:
+        document = Document(filename="essay.txt", sha256="c" * 64,
+                            metadata_json={"word_count": 82, "language_detection": {"name": "English", "status": "detected", "confidence": 0.97},
+                                           "declared": {"provenance": "UNKNOWN", "language": "en", "context": "Public collection"}})
+        db.add(document)
+        db.flush()
+        experiment = Experiment(name="Single document", status="COMPLETED", completed_items=1, total_items=1,
+                                protocol={"kind": "single_document_detector_run", "document_id": document.id})
+        db.add(experiment)
+        db.flush()
+        db.add(Result(experiment_id=experiment.id, document_id=document.id,
+                      output={"model_id": "roberta-openai", "revision": "pinned-revision", "label": "Fake",
+                              "score": 0.83, "score_semantics": "raw_logit", "device": "cpu", "duration_ms": 12.5,
+                              "raw_output": {"logit": 0.83}}))
+        db.commit()
+        experiment_id = experiment.id
+
+    response = client.post(f"/api/experiments/{experiment_id}/reports")
+    assert response.status_code == 201, response.text
+    report = response.json()
+    assert report["analysis"]["kind"] == "document_analysis"
+    markdown = client.get(report["markdown_url"])
+    assert markdown.status_code == 200
+    assert "UNKNOWN (declared metadata; not inferred)" in markdown.text
+    assert "Raw score: 0.83" in markdown.text
+    assert "not a calibrated probability or proof of authorship" in markdown.text
+    assert "Uploader context: Public collection" in markdown.text
+    csv = client.get(report["csv_url"])
+    assert csv.status_code == 200
+    assert "0.83" in csv.text

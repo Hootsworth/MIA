@@ -15,7 +15,8 @@ from backend.api.analysis import analyze_experiment
 from backend.api.detectors import get_db
 from backend.core.database import ROOT
 from backend.models import AuditEvent, Document, Experiment, GeneratedReport, Result, TurnitinReport
-from backend.reports.generator import git_revision, render_raw_csv, render_report
+from backend.reports.generator import (git_revision, render_document_csv,
+                                       render_document_report, render_raw_csv, render_report)
 
 router = APIRouter(tags=["reports"])
 GENERATED_STORAGE = ROOT / "storage" / "reports" / "generated"
@@ -49,8 +50,25 @@ def create_report(experiment_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Experiment not found")
     if experiment.status != "COMPLETED":
         raise HTTPException(409, "Reports can only be generated for completed experiments")
-    analysis = analyze_experiment(experiment_id, db=db)
+    is_document_run = (experiment.protocol or {}).get("kind") == "single_document_detector_run"
+    commit_sha = git_revision(ROOT)
     results = db.scalars(select(Result).where(Result.experiment_id == experiment_id).order_by(Result.created_at, Result.id)).all()
+    if is_document_run:
+        protocol = experiment.protocol or {}
+        document = db.get(Document, protocol.get("document_id"))
+        result = next((item for item in results if item.document_id == protocol.get("document_id")), None)
+        if document is None or result is None:
+            raise HTTPException(422, "The saved document or detector result is missing")
+        if (result.output or {}).get("error"):
+            raise HTTPException(422, "A failed detector result cannot be used to generate a report")
+        markdown = render_document_report(document, result, commit_sha)
+        csv_text = render_document_csv(document, result)
+        analysis_summary = {"kind": "document_analysis", "experiment_name": experiment.name,
+                            "document_filename": document.filename, "detector": (result.output or {}).get("model_id"),
+                            "score": (result.output or {}).get("score"), "score_semantics": (result.output or {}).get("score_semantics"),
+                            "label": (result.output or {}).get("label")}
+    else:
+        analysis = analyze_experiment(experiment_id, db=db)
     docs = {item.id: item.filename for item in db.scalars(select(Document).where(Document.id.in_([
         row.get("id") for row in (experiment.protocol or {}).get("document_snapshot", [])
     ]))).all()}
@@ -79,10 +97,17 @@ def create_report(experiment_id: str, db: Session = Depends(get_db)):
     GENERATED_STORAGE.mkdir(parents=True, exist_ok=True)
     markdown_path = GENERATED_STORAGE / f"{report_id}.md"
     csv_path = GENERATED_STORAGE / f"{report_id}.csv"
-    commit_sha = git_revision(ROOT)
-    markdown = render_report(experiment, analysis, commit_sha)
-    # Version key lookup comes from the immutable detector snapshot, not current registry state.
-    csv_text = render_raw_csv(experiment, raw_rows, (experiment.protocol or {}).get("detector_snapshot", []))
+    if not is_document_run:
+        markdown = render_report(experiment, analysis, commit_sha)
+        # Version key lookup comes from the immutable detector snapshot, not current registry state.
+        csv_text = render_raw_csv(experiment, raw_rows, (experiment.protocol or {}).get("detector_snapshot", []))
+        analysis_summary = {
+            "kind": "experiment_analysis",
+            "experiment_name": experiment.name,
+            "detectors": [{"key": item.get("detector"), "n": item.get("n"), "metrics": item.get("metrics", {})}
+                          for item in analysis.get("detectors", [])],
+            "comparisons": analysis.get("comparisons", []),
+        }
     markdown_path.write_text(markdown, encoding="utf-8")
     csv_path.write_text(csv_text, encoding="utf-8")
     markdown_relative = str(markdown_path.relative_to(ROOT))
@@ -96,12 +121,7 @@ def create_report(experiment_id: str, db: Session = Depends(get_db)):
             "markdown_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
             "csv_sha256": hashlib.sha256(csv_text.encode("utf-8")).hexdigest(),
             "commit_sha": commit_sha,
-            "analysis_summary": {
-                "experiment_name": experiment.name,
-                "detectors": [{"key": item.get("detector"), "n": item.get("n"), "metrics": item.get("metrics", {})}
-                              for item in analysis.get("detectors", [])],
-                "comparisons": analysis.get("comparisons", []),
-            },
+            "analysis_summary": analysis_summary,
         },
     )
     try:
