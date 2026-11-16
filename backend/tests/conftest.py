@@ -21,6 +21,32 @@ def db(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def client():
-    with TestClient(app) as test_client:
-        yield test_client
+def client(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'client-test.db'}")
+    from sqlalchemy import event
+
+    @event.listens_for(engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _record):
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
+    Base.metadata.create_all(engine)
+    testing_sessions = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    def override_get_db():
+        session = testing_sessions()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    from backend.api.detectors import get_db as detector_get_db
+    from backend.api.documents import get_db as documents_get_db
+
+    app.dependency_overrides[detector_get_db] = override_get_db
+    app.dependency_overrides[documents_get_db] = override_get_db
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()

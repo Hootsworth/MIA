@@ -33,7 +33,15 @@ BACKEND_PID=$!
 FRONTEND_PID=$!
 cleanup() {
   trap - INT TERM EXIT
-  kill "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
+  terminate_tree() {
+    local pid="$1" child
+    for child in $(pgrep -P "$pid" 2>/dev/null || true); do
+      terminate_tree "$child"
+    done
+    kill "$pid" 2>/dev/null || true
+  }
+  terminate_tree "$FRONTEND_PID"
+  terminate_tree "$BACKEND_PID"
   wait "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
   rm -f .mia-pids
 }
