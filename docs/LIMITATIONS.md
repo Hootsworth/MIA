@@ -36,3 +36,11 @@
 - A per-item failure is recorded with no score and leaves the experiment partially completed. Resume retries failed pairs and updates that pair's existing result row; successful pairs are not recomputed.
 - Protocol snapshots verify extracted text has not changed since draft creation. If local document storage is missing or changed, that pair records an error and requires storage repair before resume.
 - `conditions.transformations` is recorded as a protocol hook only. Perturbations are not applied in this milestone.
+
+## Milestone 6 statistics
+
+- Statistics require a structured `m6.1` rule. Existing M5 free-text protocols remain readable but cannot be analyzed until duplicated/updated as an M6 structured protocol.
+- Metrics use declared provenance, which is not independently verified. The current local database has one HUMAN document and no AI-labeled documents, so the live dataset cannot estimate binary performance; one-class results correctly leave AUROC/AUPRC unavailable.
+- Bootstrap intervals are percentile intervals over observed documents, or paired documents in detector comparisons. This release does not provide cluster-resampling intervals through the analysis endpoint, multiplicity adjustments, or threshold tuning. The grouped leakage helper is available for study splits, but the current analysis endpoint does not create splits.
+- Subgroup summaries report sample counts and low-n flags but do not claim inferential subgroup differences. Calibration is available only for scores explicitly marked as probabilities; the current RoBERTa probability is not necessarily calibrated.
+- Censored and missing score states are counted separately and excluded. No censoring-aware estimator is implemented.
