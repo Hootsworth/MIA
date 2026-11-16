@@ -18,3 +18,12 @@
 - The softmax score is not calibrated against a representative contemporary dataset. It is not evidence or proof of authorship.
 - The health check confirms that real inference works on one unlabeled diagnostic passage; it does not establish accuracy.
 - Meaningful performance evaluation requires a documented, licensed, labeled dataset and is not part of Milestone 3.
+
+## Milestone 4 similarity
+
+- Winnowing matches exact normalized word sequences. Synonym changes, reordered text, and paraphrases can produce little or no overlap. This is expected and does not indicate absence of copied ideas.
+- Punctuation, capitalization, compatibility characters, and whitespace differences are normalized away. Highlight spans include original punctuation only when it falls between the first and last matched word; differences in punctuation may therefore appear inside otherwise matched ranges.
+- A shared normalized run of eight or more words is guaranteed to share a fingerprint with defaults `k=5,w=4`. Shorter matches can be missed by design; isolated/common repeated phrases may create incidental matches.
+- Overlap percentages measure matched query-word coverage against the indexed corpus. They are not probabilities, plagiarism findings, or proof of authorship. A zero score means only that no indexed fingerprints matched.
+- Results depend on reference-corpus coverage and licensing. Wikipedia pages are not a balanced or comprehensive corpus. Reuse requires attribution and ShareAlike compliance; MIA keeps collected page text and its derived index local and uncommitted.
+- No boilerplate filter, semantic matching layer, corpus-level false-positive study, or evaluation metrics are included in this milestone.

@@ -40,7 +40,7 @@ class DetectionResult:
     revision: str
     configuration: dict[str, Any]
     raw_output: dict[str, Any]
-    label: str
+    label: str | None
     score: float
     score_semantics: str
     duration_ms: float

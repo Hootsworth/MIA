@@ -11,7 +11,7 @@ MIA is designed to measure detector behavior, not to help people evade detection
 
 ## Current status
 
-Milestones 1–3 provide the foundation, document ingestion, and the first real detector baseline. MIA Lab includes FastAPI with SQLite, a Next.js interface, declared-provenance document handling, and a pinned RoBERTa OpenAI detector with persistent inference results. The separate `mia-detect` package remains dependency-light and installable without the web application.
+The Foundation, Documents, Detectors, and Similarity milestones are implemented. The standalone `mia-detect` package provides a winnowing-based exact-overlap index and CLI. The Lab registry exposes the RoBERTa baseline and similarity detector; similarity is unavailable until a local reference index is built. Experiments, statistics, Turnitin report import, and research reporting remain later milestones.
 
 ## Quick start
 
@@ -51,11 +51,11 @@ Run the backend and standalone package tests with:
 .venv/bin/python -m pytest
 ```
 
-The current tests cover API health, schema creation, SQLite foreign keys and uniqueness, detector validation and unavailable states, and installation/import of `mia-detect` without application dependencies.
+The current tests cover API health, schema creation and constraints, detector availability, similarity normalization and winnowing guarantees, source attribution and match spans, and installation/import of `mia-detect` without application dependencies.
 
 ## Use `mia-detect` on its own
 
-The detector package has no web, database, or runtime dependencies. Install it from this repository:
+The detector package has no web, database-server, or runtime dependencies beyond Python's standard library. Install it from this repository:
 
 ```sh
 python -m pip install ./packages/mia-detect
@@ -69,7 +69,7 @@ import mia_detect
 print(mia_detect.__version__)
 ```
 
-The package currently provides its module structure; the v1 similarity implementation is still a later milestone. The web app's RoBERTa model is separate from `mia-detect` and has no effect on that standalone package's dependency requirements.
+The package implements deterministic exact normalized-word overlap with SQLite from Python's standard library. The web app's RoBERTa model is separate from `mia-detect` and has no effect on that standalone package's dependency requirements.
 
 ## Research and privacy principles
 
@@ -106,3 +106,14 @@ PDF extraction uses PyMuPDF, DOCX extraction uses python-docx, and text encoding
 ## Detectors (Milestone 3)
 
 Open `/detectors` to inspect availability and run the model's real inference health check. Once operational, select a stored English document of at least 50 words to produce a persistent result. The first health check downloads the pinned `openai-community/roberta-base-openai-detector` weights. The model was trained on GPT-2 outputs and WebText; its chunk-averaged Fake-class softmax score is not calibrated and cannot establish authorship. Every result retains the model revision, device, duration, raw per-chunk probabilities, and declared provenance. No evaluation metrics are produced in this milestone. Read [`docs/METHODS.md`](docs/METHODS.md) and [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) before interpreting outputs.
+
+## Similarity (Milestone 4)
+
+The registry also exposes `MIA Similarity · Winnowing`. It is operational only when a local reference index exists and its real self-match health check passes. Collect an attributed development reference set and build the default SQLite index with:
+
+```sh
+.venv/bin/python scripts/fetch_wikipedia_corpus.py --count 1000 --output storage/reference-corpus/wikipedia-en
+.venv/bin/python -m mia_detect index storage/reference-corpus/wikipedia-en --database storage/similarity/index.sqlite3
+```
+
+Then run the health check at `/detectors`. The collector stores article introductions locally and writes a revision-linked source manifest; the corpus and index are git-ignored. Commit only `data/manifests/` metadata. Defaults are five-word shingles and a four-shingle winnowing window, giving an eight-word exact-match threshold guarantee. The CLI can also index your own UTF-8 `.txt` directory and compare a text file: `mia-detect index <directory> --database <index>` then `mia-detect check <file> --database <index>`. Returned overlap percentages are query-word coverage, not probability or a plagiarism finding. See [`docs/DATASETS.md`](docs/DATASETS.md) for licensing and attribution rules.

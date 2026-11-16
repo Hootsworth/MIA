@@ -10,12 +10,19 @@ class DetectorRegistry:
         self._factories: dict[str, Callable[[], DetectorAdapter]] = {}
         self._instances: dict[str, DetectorAdapter] = {}
         self.register("roberta-openai", self._make_roberta)
+        self.register("mia-similarity-winnowing", self._make_similarity)
 
     @staticmethod
     def _make_roberta():
         from backend.detectors.roberta_openai import RobertaOpenAIDetector
 
         return RobertaOpenAIDetector()
+
+    @staticmethod
+    def _make_similarity():
+        from backend.detectors.similarity import SimilarityDetector
+
+        return SimilarityDetector()
 
     def register(self, key: str, factory: Callable[[], DetectorAdapter]) -> None:
         self._factories[key] = factory

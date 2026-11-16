@@ -16,8 +16,11 @@ if (( NODE_MAJOR < 20 )); then echo "Node.js 20 or newer is required; found $(no
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 MODEL_CACHE="${MIA_MODEL_CACHE:-storage/models}"
 if [[ "$MODEL_CACHE" = /* ]]; then export HF_HOME="$MODEL_CACHE"; else export HF_HOME="$ROOT/$MODEL_CACHE"; fi
+SIMILARITY_INDEX="${MIA_SIMILARITY_INDEX:-storage/similarity/index.sqlite3}"
+if [[ "$SIMILARITY_INDEX" = /* ]]; then export MIA_SIMILARITY_INDEX="$SIMILARITY_INDEX"; else export MIA_SIMILARITY_INDEX="$ROOT/$SIMILARITY_INDEX"; fi
 mkdir -p data storage/documents storage/reports storage/exports storage/logs
 mkdir -p "$HF_HOME"
+mkdir -p "$(dirname "$MIA_SIMILARITY_INDEX")"
 if [[ ! -d .venv ]]; then "$PYTHON" -m venv .venv; fi
 .venv/bin/python -m pip install -r backend/requirements.txt
 .venv/bin/python -m pip install --no-build-isolation --no-deps ./packages/mia-detect
