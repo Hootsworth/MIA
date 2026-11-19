@@ -125,6 +125,90 @@ def _office_text(ext: str, data: bytes) -> str:
         raise HTTPException(422, f"LibreOffice produced unreadable UTF-8 text for {ext[1:].upper()}") from exc
 
 
+def _latex_text(source: str) -> str:
+    """Turn common LaTeX structure into readable text without discarding math/table contents."""
+    source = re.sub(r"(?<!\\)%[^\n]*", "", source)
+    source = re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"(\1)/(\2)", source)
+    source = re.sub(r"\\sqrt\{([^{}]*)\}", r"√(\1)", source)
+    symbols = {"alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "theta": "θ",
+               "lambda": "λ", "mu": "μ", "pi": "π", "sigma": "σ", "omega": "ω",
+               "times": "×", "cdot": "·", "leq": "≤", "geq": "≥", "neq": "≠", "infty": "∞"}
+    source = re.sub(r"\\(" + "|".join(symbols) + r")\b", lambda match: symbols[match.group(1)], source)
+    # Keep the content of common semantic environments while removing their wrappers.
+    source = re.sub(r"\\begin\{(?:document|abstract|quote|quotation|itemize|enumerate|description|center|flushleft|flushright|figure\*?|table\*?|equation\*?|align\*?|gather\*?|multline\*?)\}(?:\[[^]]*\])?", "\n", source)
+    source = re.sub(r"\\end\{[^}]+\}", "\n", source)
+    source = re.sub(r"\\(?:\\|newline|par|linebreak)(?![A-Za-z])", "\n", source)
+    source = re.sub(r"\\(?:hline|toprule|midrule|bottomrule|centering|maketitle|small|large|Large|footnotesize)\b", "\n", source)
+    source = re.sub(r"\\(?:section|subsection|subsubsection|chapter|paragraph|title|author|caption|textbf|textit|emph|underline|mathrm|mathbf|operatorname)\*?(?:\[[^]]*\])?\{([^{}]*)\}", r"\1", source)
+    source = re.sub(r"\\href\*?(?:\[[^]]*\])?\{[^{}]*\}\{([^{}]*)\}", r"\1", source)
+    source = re.sub(r"\\(?:label|ref|eqref|cite|citep|citet|bibliography|bibliographystyle|usepackage|documentclass|input|include|includegraphics|url)\*?(?:\[[^]]*\])?\{[^{}]*\}", " ", source)
+    source = re.sub(r"\\begin\{(?:tabular|tabularx|longtable|array)\}(?:\{[^{}]*\})?", "\n", source)
+    # Table cells and list items are separated so their words are not concatenated.
+    source = re.sub(r"(?<!\\)&", "\t", source)
+    source = re.sub(r"\\\\(?:\[[^]]*\])?", "\n", source)
+    source = re.sub(r"\\item(?:\[[^]]*\])?", "\n• ", source)
+    # Remove remaining command names but keep following brace contents.
+    source = re.sub(r"\\[A-Za-z@]+\*?", " ", source)
+    source = source.replace("\\{", "{").replace("\\}", "}").replace("\\%", "%").replace("\\_", "_").replace("\\&", "&")
+    source = re.sub(r"\$\$?", " ", source)
+    source = re.sub(r"\\\[|\\\]|\\\(|\\\)", " ", source)
+    source = re.sub(r"[{}]", " ", source)
+    source = re.sub(r" *\t *", "\t", source)
+    source = re.sub(r" +", " ", source)
+    source = re.sub(r" *\n *", "\n", source)
+    return "\n".join(line.strip() for line in source.splitlines() if line.strip())
+
+
+def _docx_block_text(block, doc) -> list[str]:
+    """Read paragraphs and nested tables in their original XML order."""
+    if isinstance(block, CT_P):
+        value = Paragraph(block, doc).text.strip()
+        return [value] if value else []
+    if isinstance(block, CT_Tbl):
+        table = Table(block, doc)
+        rows = []
+        for row in table.rows:
+            cells = []
+            for cell in row.cells:
+                cell_parts = []
+                for child in cell._tc.iterchildren():
+                    if isinstance(child, (CT_P, CT_Tbl)):
+                        cell_parts.extend(_docx_block_text(child, doc))
+                cell_text = " ".join(part.strip() for part in cell_parts if part.strip())
+                if not cells or cell_text != cells[-1]:  # merged cells appear more than once in python-docx
+                    cells.append(cell_text)
+            if any(cells):
+                rows.append("\t".join(cells))
+        return rows
+    return []
+
+
+def _pdf_page_text(page) -> tuple[str, bool]:
+    """Extract PDF text in layout order, replacing detected table areas with cell rows."""
+    tables = []
+    try:
+        found = page.find_tables()
+        for table in found.tables:
+            rows = table.extract()
+            if rows:
+                rows_text = ["\t".join((cell or "").replace("\n", " ").strip() for cell in row) for row in rows]
+                tables.append((table.bbox, "\n".join(rows_text)))
+    except Exception:
+        # Some vector artwork resembles a table; normal text extraction remains available.
+        pass
+    blocks = []
+    for block in page.get_text("blocks", sort=True):
+        x0, y0, x1, y1, value = block[:5]
+        if not str(value).strip():
+            continue
+        covered = any(x0 >= bbox[0] and y0 >= bbox[1] and x1 <= bbox[2] and y1 <= bbox[3] for bbox, _ in tables)
+        if not covered:
+            blocks.append((y0, x0, str(value).strip()))
+    blocks.extend((bbox[1], bbox[0], value) for bbox, value in tables)
+    blocks.sort(key=lambda item: (round(item[0], 1), item[1]))
+    return "\n".join(item[2] for item in blocks).strip(), bool(tables)
+
+
 def extract(ext: str, data: bytes):
     pages: list[dict] = []
     flags: list[dict] = []
@@ -138,11 +222,27 @@ def extract(ext: str, data: bytes):
         if pdf.needs_pass:
             raise HTTPException(422, "Password-protected PDFs are not supported")
         image_pages = 0
+        ocr_pages = []
+        table_pages = []
         multi_column_pages = []
         for number, page in enumerate(pdf, start=1):
-            text = page.get_text("text", sort=True).strip()
-            if page.get_images(full=True):
+            text, has_tables = _pdf_page_text(page)
+            if has_tables:
+                table_pages.append(number)
+            has_images = bool(page.get_images(full=True))
+            if has_images:
                 image_pages += 1
+            # Use PyMuPDF's Tesseract bridge only for image-heavy pages with almost no text.
+            if has_images and len(text.split()) < 8 and shutil.which("tesseract"):
+                try:
+                    ocr_page = page.get_textpage_ocr(language="eng", dpi=200, full=True)
+                    ocr_text = page.get_text("text", textpage=ocr_page, sort=True).strip()
+                    if len(ocr_text.split()) > len(text.split()):
+                        text = ocr_text
+                        ocr_pages.append(number)
+                except Exception:
+                    # OCR is a best-effort fallback; the normal quality checks below report no text.
+                    pass
             pages.append({"page": number, "text": text})
             words_on_page = page.get_text("words")
             left_words = [word for word in words_on_page if word[0] < page.rect.width * .45]
@@ -156,8 +256,14 @@ def extract(ext: str, data: bytes):
                           "message": f"Possible multi-column reading order on {len(multi_column_pages)} page(s).",
                           "pages": multi_column_pages})
         text = "\n\n".join(p["text"] for p in pages)
+        if ocr_pages:
+            flags.append({"code": "ocr_applied", "message": f"Tesseract OCR was used on {len(ocr_pages)} low-text image page(s); verify recognition carefully.", "pages": ocr_pages})
+        if table_pages:
+            flags.append({"code": "pdf_tables_detected", "message": f"Table cell text was reconstructed on {len(table_pages)} PDF page(s); verify complex or merged cells.", "pages": table_pages})
         if image_pages and len(text.split()) < max(10, len(pdf) * 5):
-            raise HTTPException(422, "PDF appears scanned with no usable text layer; OCR is not supported")
+            if not shutil.which("tesseract"):
+                raise HTTPException(422, "PDF appears scanned with no usable text layer; install Tesseract OCR and its language data")
+            raise HTTPException(422, "PDF appears scanned and OCR found no usable text")
         if not text.strip():
             raise HTTPException(422, "PDF contains no extractable text")
         if len(pages) > 1:
@@ -172,13 +278,15 @@ def extract(ext: str, data: bytes):
             raise HTTPException(422, f"Unreadable DOCX: {exc}") from exc
         chunks = []
         for block in doc.element.body.iterchildren():
-            if isinstance(block, CT_P):
-                paragraph = Paragraph(block, doc)
-                if paragraph.text.strip():
-                    chunks.append(paragraph.text)
-            elif isinstance(block, CT_Tbl):
-                table = Table(block, doc)
-                chunks.extend("\t".join(cell.text.strip() for cell in row.cells) for row in table.rows)
+            chunks.extend(_docx_block_text(block, doc))
+        # Headers and footers often contain meaningful titles/notes; include each distinct value once.
+        seen = set(chunks)
+        for section in doc.sections:
+            for part in (section.header, section.footer):
+                for paragraph in part.paragraphs:
+                    value = paragraph.text.strip()
+                    if value and value not in seen:
+                        chunks.append(value); seen.add(value)
         text = "\n\n".join(chunks)
         if not text.strip():
             raise HTTPException(422, "DOCX contains no extractable text")
@@ -227,6 +335,8 @@ def extract(ext: str, data: bytes):
                 text = "\n".join(value.strip() for value in root.itertext() if value.strip())
             except ElementTree.ParseError as exc:
                 raise HTTPException(422, f"Malformed XML document: {exc}") from exc
+        elif ext == ".tex":
+            text = _latex_text(text)
         if not text.strip():
             raise HTTPException(422, "Text file is empty")
         pages = [{"page": None, "text": text}]

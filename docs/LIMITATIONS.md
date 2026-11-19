@@ -2,9 +2,10 @@
 
 ## Milestone 2
 
-- PDF layout extraction is heuristic. Multi-column reading order can interleave; MIA flags some likely columns but does not guarantee correct ordering.
-- Scanned PDFs are unsupported and rejected; there is no OCR.
-- DOCX pagination is not available from the source format and is represented as one text section with paragraph boundaries.
+- PDF layout extraction is heuristic. Multi-column reading order can interleave; MIA flags some likely columns but does not guarantee correct ordering. Ruled tables are reconstructed when detected; borderless tables, merged cells, dense math, and text embedded in diagrams may be incomplete or out of order.
+- Scanned PDF pages use optional local Tesseract OCR when available. OCR is English by default and can misread text, formulas, columns, and tables; results carry an OCR warning and need review. Other languages require matching Tesseract language data, which MIA does not configure automatically.
+- DOCX pagination is not available from the source format and is represented as one text section with paragraph boundaries. Body nested tables and paragraph-only header/footer text are extracted, but floating text boxes, drawing text, and some footnotes/endnotes may be missed.
+- LaTeX extraction handles common commands and environments but does not compile TeX or expand project-specific macros, external inputs, bibliography databases, or image content. Complex nested math and custom table structures may not be faithfully rendered.
 - Legacy DOC, ODT, and RTF extraction requires LibreOffice on the backend; DOCX does not require it.
 - HTML and XML extraction keeps visible/text-node content only. CSS layout, images, embedded documents, and OCR are not interpreted.
 - The detector supports English only and needs at least 50 words. Other uploaded documents can be stored but the model will refuse prediction.

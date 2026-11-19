@@ -158,6 +158,42 @@ def test_docx_table_text_is_extracted_in_document_order(isolated_client):
     assert text.index("Before the table") < text.index("first table cell") < text.index("second table cell")
 
 
+def test_docx_nested_table_text_is_extracted(isolated_client):
+    client, _, _ = isolated_client
+    docx = Docx()
+    table = docx.add_table(rows=1, cols=1)
+    table.cell(0, 0).text = "Outer cell text with enough context."
+    nested = table.cell(0, 0).add_table(rows=1, cols=2)
+    nested.cell(0, 0).text = "Nested label"
+    nested.cell(0, 1).text = "Nested value"
+    output = io.BytesIO(); docx.save(output)
+    response = post(client, "nested.docx", output.getvalue())
+    assert response.status_code == 201, response.text
+    text = client.get(f"/api/documents/{response.json()['id']}").json()["pages"][0]["text"]
+    assert "Outer cell text" in text and "Nested label" in text and "Nested value" in text
+
+
+def test_latex_source_extracts_prose_math_and_tabular_content(isolated_client):
+    client, _, _ = isolated_client
+    source = r"""\documentclass{article}
+% Ignore comments, never text after the comment marker
+\begin{document}
+\section{A Useful Title}
+This human-readable paragraph explains the method with \emph{emphasis}.
+The expression $x^2 + y$ and fraction $\frac{1}{2}$ remain visible.
+\begin{tabular}{lc}
+Name & Value \\
+Alpha & 42 \\
+\end{tabular}
+\end{document}"""
+    response = post(client, "paper.tex", source.encode())
+    assert response.status_code == 201, response.text
+    text = client.get(f"/api/documents/{response.json()['id']}").json()["pages"][0]["text"]
+    assert "A Useful Title" in text and "human-readable paragraph" in text
+    assert "x^2 + y" in text and "(1)/(2)" in text and "Alpha\t42" in text
+    assert "Ignore comments" not in text and "\\section" not in text
+
+
 def test_html_visible_text_xml_and_markdown_formats(isolated_client):
     client, _, _ = isolated_client
     html = b"<html><head><title>ignored metadata</title></head><body><h1>Readable heading</h1><p>Visible prose has enough words for useful detector input here.</p><script>hidden invented words stay excluded</script></body></html>"
@@ -248,3 +284,42 @@ def test_pdf_multi_column_layout_gets_warning(isolated_client):
     assert len(flags) == 1
     assert flags[0]["pages"] == [1, 2, 3]
     assert flags[0]["message"] == "Possible multi-column reading order on pages 1–3."
+
+
+def test_pdf_table_cells_are_reconstructed(isolated_client):
+    client, _, _ = isolated_client
+    source = fitz.open()
+    page = source.new_page()
+    page.insert_text((72, 50), "Results are summarized below for this document.")
+    # Draw a ruled table so PyMuPDF's table detector can recover cell structure.
+    x_edges = [72, 210, 350]
+    y_edges = [90, 120, 150]
+    for x in x_edges:
+        page.draw_line((x, y_edges[0]), (x, y_edges[-1]))
+    for y in y_edges:
+        page.draw_line((x_edges[0], y), (x_edges[-1], y))
+    for x, y, label in [(78, 110, "Measure"), (216, 110, "Value"), (78, 140, "Accuracy"), (216, 140, "0.91")]:
+        page.insert_text((x, y), label)
+    data = source.tobytes(); source.close()
+    response = post(client, "table.pdf", data)
+    assert response.status_code == 201, response.text
+    result = client.get(f"/api/documents/{response.json()['id']}").json()
+    extracted = result["pages"][0]["text"]
+    assert "Measure\tValue" in extracted and "Accuracy\t0.91" in extracted
+    assert any(flag["code"] == "pdf_tables_detected" for flag in result["quality_flags"])
+
+
+def test_pdf_ocr_extracts_scanned_text_when_tesseract_is_available(isolated_client):
+    if shutil.which("tesseract") is None:
+        pytest.skip("Tesseract OCR is optional")
+    client, _, _ = isolated_client
+    rendered = fitz.open(); rendered_page = rendered.new_page(width=700, height=120)
+    rendered_page.insert_text((30, 65), "This scanned page contains enough clear words for OCR extraction.", fontsize=20)
+    pixmap = rendered_page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+    source = fitz.open(); page = source.new_page(width=700, height=120); page.insert_image(page.rect, stream=pixmap.tobytes("png"))
+    data = source.tobytes(); source.close(); rendered.close()
+    response = post(client, "scan.pdf", data)
+    assert response.status_code == 201, response.text
+    result = client.get(f"/api/documents/{response.json()['id']}").json()
+    assert "scanned page contains enough clear words" in result["pages"][0]["text"].lower()
+    assert any(flag["code"] == "ocr_applied" for flag in result["quality_flags"])
