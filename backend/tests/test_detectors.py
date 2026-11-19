@@ -6,7 +6,7 @@ from backend.detectors.roberta_openai import MIN_WORDS, MODEL_REVISION, ModelUna
 
 def test_registry_constructs_adapters_lazily():
     registry = DetectorRegistry()
-    assert registry.keys() == ("roberta-openai", "mia-similarity-winnowing")
+    assert registry.keys() == ("roberta-openai", "modernbert-ai-text-detector", "tropa-mini", "mia-similarity-winnowing")
     assert registry._instances == {}
     adapter = registry.get("roberta-openai")
     assert isinstance(adapter, RobertaOpenAIDetector)

@@ -11,4 +11,7 @@ storage/**
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+detector-app/node_modules/
+detector-app/.next/
+detector-app/next-env.d.ts
 .mia-pids

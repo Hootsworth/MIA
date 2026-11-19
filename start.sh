@@ -25,12 +25,15 @@ if [[ ! -d .venv ]]; then "$PYTHON" -m venv .venv; fi
 .venv/bin/python -m pip install -r backend/requirements.txt
 .venv/bin/python -m pip install --no-build-isolation --no-deps ./packages/mia-detect
 if [[ ! -d frontend/node_modules ]]; then (cd frontend && npm install); fi
+if [[ ! -d detector-app/node_modules ]]; then (cd detector-app && npm install); fi
 
 .venv/bin/python -c 'from backend.core.database import init_db; init_db()'
 .venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000 >storage/logs/backend.log 2>&1 &
 BACKEND_PID=$!
 (cd frontend && exec ./node_modules/.bin/next dev --hostname 0.0.0.0) >"$ROOT/storage/logs/frontend.log" 2>&1 &
 FRONTEND_PID=$!
+(cd detector-app && exec ./node_modules/.bin/next dev --hostname 0.0.0.0 --port 3001) >"$ROOT/storage/logs/detector-app.log" 2>&1 &
+DETECTOR_APP_PID=$!
 cleanup() {
   trap - INT TERM EXIT
   terminate_tree() {
@@ -41,14 +44,15 @@ cleanup() {
     kill "$pid" 2>/dev/null || true
   }
   terminate_tree "$FRONTEND_PID"
+  terminate_tree "$DETECTOR_APP_PID"
   terminate_tree "$BACKEND_PID"
-  wait "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
+  wait "$FRONTEND_PID" "$DETECTOR_APP_PID" "$BACKEND_PID" 2>/dev/null || true
   rm -f .mia-pids
 }
-printf '%s\n%s\n' "$BACKEND_PID" "$FRONTEND_PID" > .mia-pids
+printf '%s\n%s\n%s\n' "$BACKEND_PID" "$FRONTEND_PID" "$DETECTOR_APP_PID" > .mia-pids
 trap cleanup INT TERM EXIT
-echo "MIA is starting. Frontend: http://localhost:3000 | Backend: http://localhost:8000 | API docs: http://localhost:8000/docs"
-while [[ -f .mia-pids ]] && kill -0 "$BACKEND_PID" 2>/dev/null && kill -0 "$FRONTEND_PID" 2>/dev/null; do sleep 1; done
+echo "MIA is starting. Research lab: http://localhost:3000 | Detector app: http://localhost:3001 | Backend: http://localhost:8000 | API docs: http://localhost:8000/docs"
+while [[ -f .mia-pids ]] && kill -0 "$BACKEND_PID" 2>/dev/null && kill -0 "$FRONTEND_PID" 2>/dev/null && kill -0 "$DETECTOR_APP_PID" 2>/dev/null; do sleep 1; done
 if [[ ! -f .mia-pids ]]; then exit 0; fi
 echo "A MIA server stopped. Check storage/logs/ for details." >&2
 exit 1

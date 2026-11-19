@@ -1,4 +1,4 @@
-.PHONY: test backend frontend
+.PHONY: test backend frontend detector-app detector-models
 
 test:
 	.venv/bin/python -m pytest backend/tests packages/mia-detect/tests
@@ -8,3 +8,9 @@ backend:
 
 frontend:
 	cd frontend && npm run dev
+
+detector-app:
+	cd detector-app && npm run dev -- --port 3001
+
+detector-models:
+	HF_HUB_DISABLE_XET=1 .venv/bin/python scripts/download_detector_models.py
