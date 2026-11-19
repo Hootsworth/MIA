@@ -44,17 +44,17 @@ The first start creates a virtual environment, installs backend and frontend dep
 
 ## Standalone open-model detector
 
-The separate detector application at port 3001 accepts documents using the same local extraction backend, then runs two pinned public checkpoints independently: Tropa Mini (four classes: human, AI, AI-edited, humanized) and ModernBERT fine-tuned on MAGE. It shows each model's raw class output and score separately. It does not calculate a combined verdict or claim that a score proves authorship. Both checkpoints are English-only in this integration and require at least 50 extracted words.
+The separate detector application at port 3001 accepts documents using the same local extraction backend and runs pinned Tropa Mini by default. It can optionally run ModernBERT as a separate comparison when selected. Results are never blended into a combined verdict, and no model score proves authorship. Both checkpoints are English-only in this integration and require at least 50 extracted words.
 
 The results view also highlights Tropa Mini's sentence-aligned passage classifications in the extracted text. These are coarse window-level outputs, not token attribution or verified authorship findings; original PDF/DOC page coordinates are not retained in this view.
 
-Download the exact checkpoint revisions before analyzing documents:
+Download the default Tropa Mini checkpoint before analyzing documents:
 
 ```sh
 make detector-models
 ```
 
-The downloads are about 2.3 GB in total and are stored under `storage/models/`; they are not committed. The detector app displays a clear unavailable state when weights are absent. Tropa Mini's published reference threshold comes from its publisher's validation set and is not calibrated for your writing population. ModernBERT output is also uncalibrated. Both can make confident errors, especially on historical prose, edited text, and generators unlike their training data. Treat the results as model outputs for exploration, not evidence for consequential decisions. See each linked Hugging Face model card in the app's source metadata and review its license before redistribution.
+This downloads Tropa Mini's 1.74 GB checkpoint to `storage/models/`; weights are not committed. To install the optional 598 MB ModernBERT checkpoint too, run `make detector-models-all`. The app enables the comparison option only when its weights are present. Tropa Mini's published reference threshold comes from its publisher's validation set and is not calibrated for your writing population. ModernBERT output is also uncalibrated. Both can make confident errors, especially on historical prose, edited text, and generators unlike their training data. Treat the results as model outputs for exploration, not evidence for consequential decisions. See each linked Hugging Face model card in the app and review its license before redistribution.
 
 The database lives at `data/mia.db`. Set `MIA_DATABASE_URL` to use another SQLAlchemy database URL. Set `NEXT_PUBLIC_API_URL` to change the frontend’s API address. `MIA_MODEL_CACHE` selects the Hugging Face cache directory (default `storage/models`). Defaults are in `.env.example`.
 

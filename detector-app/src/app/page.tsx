@@ -84,15 +84,19 @@ export default function DetectorPage() {
   const [result, setResult] = useState<SuiteResult | null>(null);
   const [backend, setBackend] = useState<"checking" | "online" | "offline">("checking");
   const [models, setModels] = useState<ModelState>("checking");
+  const [modernbertAvailable, setModernbertAvailable] = useState(false);
+  const [includeModernbert, setIncludeModernbert] = useState(false);
 
   useEffect(() => {
     void Promise.all([fetch(`${API}/api/health`), fetch(`${API}/api/detectors`)]).then(async ([health, response]) => {
       setBackend(health.ok ? "online" : "offline");
       if (!health.ok || !response.ok) { setModels("offline"); return; }
       const detectors = await response.json() as { key: string; weights_cached: boolean }[];
-      const target = detectors.filter(({ key }) => ["tropa-mini", "modernbert-ai-text-detector"].includes(key));
-      setModels(target.length === 2 && target.every(({ weights_cached }) => weights_cached) ? "ready" : "missing");
-    }).catch(() => { setBackend("offline"); setModels("offline"); });
+      const tropa = detectors.find(({ key }) => key === "tropa-mini");
+      const modernbert = detectors.find(({ key }) => key === "modernbert-ai-text-detector");
+      setModels(tropa?.weights_cached ? "ready" : "missing");
+      setModernbertAvailable(Boolean(modernbert?.weights_cached));
+    }).catch(() => { setBackend("offline"); setModels("offline"); setModernbertAvailable(false); });
   }, []);
 
   async function analyze(event: FormEvent<HTMLFormElement>) {
@@ -115,11 +119,11 @@ export default function DetectorPage() {
           documentId = document.detail.existing_document_id;
         } else throw new Error(errorText(document));
       }
-      setPhase("analyzing"); setNotice("Running two open detectors locally. The first analysis can take longer while models load.");
-      const response = await fetch(`${API}/api/detector-suite/documents/${documentId}/predict`, { method: "POST" });
+      setPhase("analyzing"); setNotice(includeModernbert ? "Running Tropa Mini and the optional ModernBERT comparison locally." : "Running Tropa Mini locally.");
+      const response = await fetch(`${API}/api/detector-suite/documents/${documentId}/predict?include_modernbert=${includeModernbert}`, { method: "POST" });
       const body = await response.json() as SuiteResult & ErrorBody;
       if (!response.ok) throw new Error(errorText(body));
-      setResult(body); setPhase("complete"); setNotice("Analysis complete. Read the models separately; they can disagree.");
+      setResult(body); setPhase("complete"); setNotice(includeModernbert ? "Analysis complete. Review the model outputs separately." : "Analysis complete. Review Tropa Mini’s output and passage highlights.");
     } catch (error) {
       setPhase("error"); setNotice(error instanceof Error ? error.message : "Analysis failed.");
     }
@@ -134,16 +138,16 @@ export default function DetectorPage() {
     <header className="site-header">
       <a className="brand" href="http://localhost:3000/">MIA<span>.</span></a>
       <nav aria-label="App navigation"><a className="active" href="#analyze">Detector</a><a href="#method">How it works</a><a href="http://localhost:3000/">Research lab ↗</a></nav>
-      <span className={`status ${backend === "online" && models === "ready" ? "online" : backend === "offline" || models === "offline" ? "offline" : "checking"}`}>{backend === "offline" || models === "offline" ? "Backend offline" : models === "ready" ? "Models ready locally" : models === "missing" ? "Model weights needed" : "Checking local models"}</span>
+      <span className={`status ${backend === "online" && models === "ready" ? "online" : backend === "offline" || models === "offline" ? "offline" : "checking"}`}>{backend === "offline" || models === "offline" ? "Backend offline" : models === "ready" ? "Tropa Mini ready locally" : models === "missing" ? "Tropa Mini weights needed" : "Checking local models"}</span>
     </header>
 
     <section className="hero" id="analyze">
-      <p className="eyebrow">TWO OPEN MODELS · RUN LOCALLY</p>
-      <h1>Look at the text.<br /><em>Then look at the evidence.</em></h1>
-      <p className="intro">MIA checks your document with two open detectors and shows what each model returned. Neither model can prove who wrote it.</p>
+      <p className="eyebrow">A PRIVATE, LOCAL TEXT CHECK</p>
+      <h1>Read the signals.<br /><em>Keep the context.</em></h1>
+      <p className="intro">Tropa Mini reviews your document and highlights passages worth a closer look. Add ModernBERT only when you want a second, independent model output.</p>
     </section>
 
-    {!result ? <section className="upload-card">
+    {!result ? <div className="workspace-layout"><section className="upload-card">
       <form onSubmit={(event) => void analyze(event)}>
         <label className="dropzone" htmlFor="document-file" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setFile(event.dataTransfer.files?.[0] ?? null); }}>
           <span className="upload-icon" aria-hidden="true">↑</span>
@@ -151,27 +155,34 @@ export default function DetectorPage() {
           <span>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB · click to change` : "or browse your files · PDF, DOCX, TXT, Markdown and more"}</span>
           <input id="document-file" type="file" accept={ACCEPTED} onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
         </label>
+        <div className="optional-model">
+          <label className="optional-toggle">
+            <input type="checkbox" checked={includeModernbert} disabled={!modernbertAvailable || busy} onChange={(event) => setIncludeModernbert(event.target.checked)} />
+            <span className="toggle-copy"><strong>Include ModernBERT comparison</strong><small>{modernbertAvailable ? "Optional second model · runs locally" : "Optional model weights are not installed"}</small></span>
+          </label>
+          {modernbertAvailable ? <a href={MODEL_CARDS["modernbert-ai-text-detector"]} target="_blank" rel="noreferrer">About this model ↗</a> : <a href="#method">Setup details ↓</a>}
+        </div>
         <label className="consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I have permission or an applicable public license to upload this document for MIA analysis.</span></label>
-        <div className="form-footer"><p>50+ English words required · 20 MB max{models === "missing" && <> · run <code>make detector-models</code></>}</p><button className="primary" disabled={busy || !file || !consent || backend !== "online" || models !== "ready"}>{busy ? "Analyzing…" : "Analyze document"}<span aria-hidden="true"> ↗</span></button></div>
+        <div className="form-footer"><p>English · 50+ words · 20 MB max{models === "missing" && <> · run <code>make detector-models</code></>}</p><button className="primary" disabled={busy || !file || !consent || backend !== "online" || models !== "ready" || (includeModernbert && !modernbertAvailable)}>{busy ? "Analyzing…" : "Review document"}<span aria-hidden="true"> ↗</span></button></div>
       </form>
       {notice && <p className={`notice ${phase === "error" ? "error" : ""}`} role="status">{notice}</p>}
       <div className="privacy-note"><span className="privacy-mark" aria-hidden="true">●</span> Your document is processed and stored by this local MIA instance. Nothing is sent to a third-party detector.</div>
-    </section> : <section className="results" aria-live="polite">
+    </section><aside className="workflow-card"><p className="eyebrow">A SIMPLE REVIEW</p><h2>From file to context</h2><div className="workflow-step"><span>01</span><div><strong>Extract</strong><p>Read selectable text from your document locally.</p></div></div><div className="workflow-step"><span>02</span><div><strong>Review</strong><p>See Tropa Mini’s document class and highlighted passages.</p></div></div><div className="workflow-step"><span>03</span><div><strong>Compare, if useful</strong><p>Turn on ModernBERT only when you want another model’s view.</p></div></div><p className="workflow-foot">No combined score. No authorship verdict.</p></aside></div> : <section className="results" aria-live="polite">
       <div className="results-heading"><div><p className="eyebrow">ANALYSIS COMPLETE</p><h2>{result.filename}</h2><p className="result-meta">{result.word_count.toLocaleString()} extracted words · run {result.experiment_id.slice(0, 8)}</p></div><button className="secondary" onClick={reset}>New analysis</button></div>
       {disagree && <p className="disagreement"><strong>The models disagree.</strong> That is a limitation signal; MIA does not average these outputs into a single verdict.</p>}
-      <div className="model-grid">{result.results.map((item) => <ModelCard key={item.detector} result={item} />)}</div>
+      <div className={`model-grid ${result.results.length === 1 ? "primary-only" : "with-comparison"}`}>{result.results.map((item) => <ModelCard key={item.detector} result={item} />)}</div>
       <PassageReview segments={result.review_segments ?? []} />
-      <div className="result-disclaimer"><strong>What this means</strong><p>These are outputs from two imperfect models trained on different data. Style, topic, historical language, edits, and newer writing models can all affect them. Do not use a detector score as proof or as the sole basis for an academic or employment decision.</p></div>
+      <div className="result-disclaimer"><strong>How to read this</strong><p>Model scores and passage colors are imperfect signals, not proof of authorship. Style, topic, historical language, edits, and newer generators can affect the output. Don’t use a detector result as the sole basis for a consequential decision.</p></div>
       <button className="secondary" onClick={reset}>Analyze another document</button>
       {notice && <p className="notice" role="status">{notice}</p>}
     </section>}
 
     <section className="method" id="method">
-      <p className="eyebrow">THE MODELS</p>
+      <p className="eyebrow">THE APPROACH</p>
       <div className="method-grid">
-        <article><span>01</span><h3>Tropa Mini</h3><p>Four-class detector for human, AI-generated, AI-edited, and humanized text. Runs locally on CPU or Apple Metal when available. <a href={MODEL_CARDS["tropa-mini"]} target="_blank" rel="noreferrer">Model card ↗</a></p></article>
-        <article><span>02</span><h3>ModernBERT</h3><p>General-purpose English detector trained on MAGE. Its benchmark reports good cross-dataset transfer and weaker results on some newer generator probes. <a href={MODEL_CARDS["modernbert-ai-text-detector"]} target="_blank" rel="noreferrer">Model card ↗</a></p></article>
-        <article><span>03</span><h3>No blended score</h3><p>The two systems are not calibrated against each other. MIA shows each model’s output independently and does not turn agreement into certainty.</p></article>
+        <article><span>01</span><h3>One clear starting point</h3><p>Tropa Mini returns human, AI, AI-edited, and humanized classes, with sentence-aligned passage highlights. <a href={MODEL_CARDS["tropa-mini"]} target="_blank" rel="noreferrer">Model card ↗</a></p></article>
+        <article><span>02</span><h3>Optional second opinion</h3><p>ModernBERT can be enabled as a separate comparison. Install it with <code>make detector-models-all</code>. It may disagree with Tropa Mini; MIA never averages the outputs. <a href={MODEL_CARDS["modernbert-ai-text-detector"]} target="_blank" rel="noreferrer">Model card ↗</a></p></article>
+        <article><span>03</span><h3>Local by default</h3><p>Documents and inference stay on this MIA instance. No content is sent to a third-party detector.</p></article>
       </div>
     </section>
     <footer><span>MIA · OPEN DETECTOR TOOLKIT</span><span>Local inference · Apache-2.0 application</span></footer>

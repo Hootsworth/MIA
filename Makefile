@@ -1,4 +1,4 @@
-.PHONY: test backend frontend detector-app detector-models
+.PHONY: test backend frontend detector-app detector-models detector-models-all
 
 test:
 	.venv/bin/python -m pytest backend/tests packages/mia-detect/tests
@@ -14,3 +14,6 @@ detector-app:
 
 detector-models:
 	HF_HUB_DISABLE_XET=1 .venv/bin/python scripts/download_detector_models.py
+
+detector-models-all:
+	HF_HUB_DISABLE_XET=1 .venv/bin/python scripts/download_detector_models.py --include-modernbert

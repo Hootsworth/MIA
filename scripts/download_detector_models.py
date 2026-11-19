@@ -3,18 +3,25 @@
 # SPDX-License-Identifier: Apache-2.0
 """Download the exact public model revisions used by the local detector app."""
 
+import argparse
+
 from pathlib import Path
 
 from huggingface_hub import hf_hub_download
 
 MODELS = (
-    ("jaspai/modernbert-ai-text-detector", "a12cb885313fd3b44a190bb31412bc72d15c4891"),
     ("wasitaigeneratedcom/tropa-mini-ai-text-detector", "10fecd0856ed65ddfe92b88416b0a1e1350d8fb8"),
+    ("jaspai/modernbert-ai-text-detector", "a12cb885313fd3b44a190bb31412bc72d15c4891"),
 )
 
 
 def main():
-    for repo_id, revision in MODELS:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--include-modernbert", action="store_true",
+                        help="also download the optional ModernBERT comparison checkpoint")
+    args = parser.parse_args()
+    selected = MODELS if args.include_modernbert else MODELS[:1]
+    for repo_id, revision in selected:
         print(f"Downloading {repo_id}@{revision}", flush=True)
         weight_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors", revision=revision,
                                       cache_dir="storage/models/hub")

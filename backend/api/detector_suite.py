@@ -5,9 +5,8 @@
 import json
 from pathlib import Path
 from time import perf_counter
-from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.api.detectors import _records, _resource_status, get_db
@@ -17,7 +16,8 @@ from backend.models import AuditEvent, Document, Experiment, Result
 router = APIRouter(tags=["detector-suite"])
 ROOT = Path(__file__).resolve().parents[2]
 DOCUMENT_STORAGE = ROOT / "storage" / "documents"
-DETECTOR_KEYS = ("tropa-mini", "modernbert-ai-text-detector")
+PRIMARY_DETECTOR = "tropa-mini"
+OPTIONAL_DETECTOR = "modernbert-ai-text-detector"
 
 
 def _load_extracted_text(document):
@@ -32,7 +32,7 @@ def _load_extracted_text(document):
 
 
 @router.post("/detector-suite/documents/{document_id}/predict")
-def predict_suite(document_id: str, db: Session = Depends(get_db)):
+def predict_suite(document_id: str, include_modernbert: bool = Query(False), db: Session = Depends(get_db)):
     document = db.get(Document, document_id)
     if document is None or (document.metadata_json or {}).get("deleted"):
         raise HTTPException(404, "Document not found")
@@ -42,7 +42,8 @@ def predict_suite(document_id: str, db: Session = Depends(get_db)):
                                    language=str(metadata.get("language", "")))
     records = []
     adapters = []
-    for key in DETECTOR_KEYS:
+    detector_keys = (PRIMARY_DETECTOR, OPTIONAL_DETECTOR) if include_modernbert else (PRIMARY_DETECTOR,)
+    for key in detector_keys:
         adapter = registry.get(key)
         result = adapter.validate(detector_input)
         if not result.valid:
