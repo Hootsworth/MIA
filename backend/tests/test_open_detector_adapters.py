@@ -1,7 +1,7 @@
 # Copyright 2026 MIA contributors
 # SPDX-License-Identifier: Apache-2.0
 from backend.detectors.base import DetectorInput
-from backend.detectors.chunking import sentence_windows
+from backend.detectors.chunking import evidence_windows, sentence_windows
 from backend.detectors.modernbert import ModernBERTDetector
 from backend.detectors.tropa_mini import TropaMiniDetector
 
@@ -23,6 +23,16 @@ def test_long_sentence_windows_respect_token_limit():
 def test_sentences_are_packed_without_exceeding_limit():
     windows = sentence_windows("one two. three four. five six.", WordTokenizer(), 4)
     assert windows == [("one two. three four.", 4), ("five six.", 2)]
+
+
+def test_evidence_windows_preserve_source_offsets_and_merge_short_tail():
+    text = "one two three four. five six seven. eight nine ten eleven. twelve thirteen fourteen."
+    windows = evidence_windows(text, WordTokenizer(), target_tokens=7, min_words=5)
+    assert [(start, end) for _, start, end, _ in windows] == [
+        (0, 35), (36, len(text))
+    ]
+    assert all(text[start:end] == passage for passage, start, end, _ in windows)
+    assert all(len(passage.split()) >= 5 for passage, _, _, _ in windows)
 
 
 def test_open_detectors_declare_minimum_text_and_english_scope():

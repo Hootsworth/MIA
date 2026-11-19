@@ -46,6 +46,8 @@ The first start creates a virtual environment, installs backend and frontend dep
 
 The separate detector application at port 3001 accepts documents using the same local extraction backend, then runs two pinned public checkpoints independently: Tropa Mini (four classes: human, AI, AI-edited, humanized) and ModernBERT fine-tuned on MAGE. It shows each model's raw class output and score separately. It does not calculate a combined verdict or claim that a score proves authorship. Both checkpoints are English-only in this integration and require at least 50 extracted words.
 
+The results view also highlights Tropa Mini's sentence-aligned passage classifications in the extracted text. These are coarse window-level outputs, not token attribution or verified authorship findings; original PDF/DOC page coordinates are not retained in this view.
+
 Download the exact checkpoint revisions before analyzing documents:
 
 ```sh

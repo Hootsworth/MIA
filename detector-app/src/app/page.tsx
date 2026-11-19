@@ -13,7 +13,8 @@ type DetectionResult = {
   label: string | null; score: number; score_semantics: string; device: string;
   duration_ms: number; raw_output: Record<string, unknown>;
 };
-type SuiteResult = { experiment_id: string; filename: string; word_count: number; results: DetectionResult[]; note: string };
+type ReviewSegment = { text: string; label: "human" | "ai" | "ai_edited" | "humanized" | null; ai_related_score?: number; class_probabilities?: Record<string, number> };
+type SuiteResult = { experiment_id: string; filename: string; word_count: number; results: DetectionResult[]; review_segments: ReviewSegment[]; note: string };
 type Phase = "idle" | "uploading" | "analyzing" | "error" | "complete";
 type ModelState = "checking" | "ready" | "missing" | "offline";
 const MODEL_CARDS: Record<string, string> = {
@@ -54,6 +55,25 @@ function ModelCard({ result }: { result: DetectionResult }) {
     </div>
     <p className="model-foot"><a href={MODEL_CARDS[result.detector]} target="_blank" rel="noreferrer">Model card ↗</a> · {result.model_id} · revision {result.revision}</p>
   </article>;
+}
+
+function PassageReview({ segments }: { segments: ReviewSegment[] }) {
+  if (!segments.length) return null;
+  const labels = ["ai", "ai_edited", "humanized", "human"] as const;
+  const labelText: Record<NonNullable<ReviewSegment["label"]>, string> = {
+    ai: "AI-like", ai_edited: "AI-edited-like", humanized: "Humanized-like", human: "Human-like",
+  };
+  let passageNumber = 0;
+  return <section className="passage-review" aria-label="Tropa Mini passage review">
+    <div className="passage-heading"><div><p className="eyebrow">TROPA MINI · TEXT HIGHLIGHTS</p><h3>Passages to review</h3></div><span>Extracted text · model-scored spans</span></div>
+    <p className="passage-caveat">Colors mark sentence-aligned passages scored separately by Tropa Mini. They are coarse passage classifications, not word-level explanations or proof that text was AI-written.</p>
+    <div className="passage-legend" aria-label="Passage label legend">{labels.map((label) => <span className={`passage-key passage-${label}`} key={label}><i />{labelText[label]}</span>)}</div>
+    <div className="review-text">{segments.map((segment, index) => {
+      if (!segment.label) return <span key={`plain-${index}`}>{segment.text}</span>;
+      const number = ++passageNumber;
+      return <mark className={`inline-mark mark-${segment.label}`} title={`${labelText[segment.label]} · AI-related score ${percent(segment.ai_related_score)}`} aria-label={`${labelText[segment.label]} passage ${number}`} key={`marked-${index}`}>{segment.text}</mark>;
+    })}</div>
+  </section>;
 }
 
 export default function DetectorPage() {
@@ -140,6 +160,7 @@ export default function DetectorPage() {
       <div className="results-heading"><div><p className="eyebrow">ANALYSIS COMPLETE</p><h2>{result.filename}</h2><p className="result-meta">{result.word_count.toLocaleString()} extracted words · run {result.experiment_id.slice(0, 8)}</p></div><button className="secondary" onClick={reset}>New analysis</button></div>
       {disagree && <p className="disagreement"><strong>The models disagree.</strong> That is a limitation signal; MIA does not average these outputs into a single verdict.</p>}
       <div className="model-grid">{result.results.map((item) => <ModelCard key={item.detector} result={item} />)}</div>
+      <PassageReview segments={result.review_segments ?? []} />
       <div className="result-disclaimer"><strong>What this means</strong><p>These are outputs from two imperfect models trained on different data. Style, topic, historical language, edits, and newer writing models can all affect them. Do not use a detector score as proof or as the sole basis for an academic or employment decision.</p></div>
       <button className="secondary" onClick={reset}>Analyze another document</button>
       {notice && <p className="notice" role="status">{notice}</p>}

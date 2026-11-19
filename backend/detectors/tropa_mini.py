@@ -9,7 +9,7 @@ from time import perf_counter
 
 from backend.detectors.base import (DetectionResult, DetectorInput, DetectorMetadata,
                                     HealthStatus, ValidationResult)
-from backend.detectors.chunking import sentence_windows
+from backend.detectors.chunking import evidence_windows, sentence_windows
 
 MODEL_ID = "wasitaigeneratedcom/tropa-mini-ai-text-detector"
 MODEL_REVISION = "10fecd0856ed65ddfe92b88416b0a1e1350d8fb8"
@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MODEL_PATH = ROOT / "storage" / "models" / "hub" / "models--wasitaigeneratedcom--tropa-mini-ai-text-detector" / "snapshots" / MODEL_REVISION
 MIN_WORDS = 50
 MAX_TOKENS = 512
+EVIDENCE_TOKENS = 80
 AI_RELATED_THRESHOLD = 0.9755912190656111
 LABELS = ("human", "ai", "ai_edited", "humanized")
 
@@ -122,19 +123,45 @@ class TropaMiniDetector:
         ai_related_score = 1.0 - distribution["human"]
         return top_label, ai_related_score, distribution, len(windows), total
 
+    def _passage_evidence(self, text: str):
+        passages = []
+        for chunk, start, end, token_count in evidence_windows(
+                text, self._tokenizer, EVIDENCE_TOKENS, MIN_WORDS):
+            batch = self._tokenizer(chunk, truncation=True, max_length=MAX_TOKENS,
+                                    return_tensors="pt", add_special_tokens=True)
+            batch = {key: value.to(self._device) for key, value in batch.items()}
+            with self._torch.inference_mode():
+                logits = self._model(**batch)[0]
+                values = self._torch.softmax(logits, dim=-1).detach().cpu().tolist()
+            distribution = dict(zip(LABELS, values))
+            label = max(LABELS, key=distribution.__getitem__)
+            passages.append({
+                "start": start,
+                "end": end,
+                "label": label,
+                "ai_related_score": 1.0 - distribution["human"],
+                "class_probabilities": distribution,
+                "token_count": token_count,
+            })
+        return passages
+
     def predict(self, document: DetectorInput, detector_id: str, detector_version_id: str):
         self._load()
         started = perf_counter()
         label, ai_related_score, distribution, chunk_count, token_count = self._classify(document.text)
+        evidence_spans = self._passage_evidence(document.text)
         return DetectionResult(
             document_id=document.document_id, detector_id=detector_id,
             detector_version_id=detector_version_id, model_id=MODEL_ID, revision=MODEL_REVISION,
             configuration={"max_tokens_per_chunk": MAX_TOKENS, "aggregation": "token-weighted mean",
-                           "reference_threshold": AI_RELATED_THRESHOLD},
+                           "reference_threshold": AI_RELATED_THRESHOLD,
+                           "evidence_method": f"sentence-aware passages targeting {EVIDENCE_TOKENS} tokens; windows shorter than {MIN_WORDS} words are merged"},
             raw_output={"class_probabilities": distribution, "ai_related_score": ai_related_score,
                         "reference_threshold": AI_RELATED_THRESHOLD, "reference_threshold_met": ai_related_score >= AI_RELATED_THRESHOLD,
                         "threshold_note": "Model-card threshold selected on the publisher's 0.5% FPR validation set; not locally calibrated.",
-                        "chunk_count": chunk_count, "token_count": token_count},
+                        "chunk_count": chunk_count, "token_count": token_count,
+                        "evidence_spans": evidence_spans,
+                        "evidence_note": "Passage classes are independent model outputs, not token-level explanations or proof of authorship."},
             label=label, score=float(ai_related_score), score_semantics="AI-related class score (1 − P(human))",
             duration_ms=(perf_counter() - started) * 1000, device=self._device,
         )

@@ -37,7 +37,8 @@ def predict_suite(document_id: str, db: Session = Depends(get_db)):
     if document is None or (document.metadata_json or {}).get("deleted"):
         raise HTTPException(404, "Document not found")
     metadata = (document.metadata_json or {}).get("declared", {})
-    detector_input = DetectorInput(document_id=document.id, text=_load_extracted_text(document),
+    text = _load_extracted_text(document)
+    detector_input = DetectorInput(document_id=document.id, text=text,
                                    language=str(metadata.get("language", "")))
     records = []
     adapters = []
@@ -109,6 +110,21 @@ def predict_suite(document_id: str, db: Session = Depends(get_db)):
     except Exception as exc:
         db.rollback()
         raise HTTPException(503, f"Local detector suite could not complete: {exc}") from exc
+    review_segments = []
+    tropa_result = next((row for row in results if row["detector"] == "tropa-mini"), None)
+    if tropa_result:
+        cursor = 0
+        for span in tropa_result["raw_output"].get("evidence_spans", []):
+            start, end = span["start"], span["end"]
+            if start > cursor:
+                review_segments.append({"text": text[cursor:start], "label": None})
+            review_segments.append({"text": text[start:end], "label": span["label"],
+                                    "ai_related_score": span["ai_related_score"],
+                                    "class_probabilities": span["class_probabilities"]})
+            cursor = end
+        if cursor < len(text):
+            review_segments.append({"text": text[cursor:], "label": None})
     return {"experiment_id": experiment.id, "document_id": document.id, "filename": document.filename,
             "word_count": (document.metadata_json or {}).get("word_count", 0), "results": results,
+            "review_segments": review_segments,
             "note": "Independent model outputs are shown side by side. No combined verdict or authorship probability is calculated."}
